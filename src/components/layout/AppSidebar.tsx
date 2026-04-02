@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, TrendingUp, ShoppingBag, Video, Store, Target as TargetIcon,
   Smartphone, DollarSign, BarChart3, Flag, Bot, Settings, Zap, HelpCircle,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Palette,
 } from 'lucide-react';
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
   { icon: Smartphone, label: 'Orgánico Social', path: '/organico' },
   { icon: DollarSign, label: 'Finanzas', path: '/finanzas' },
   { icon: BarChart3, label: 'KPIs Financieros', path: '/kpis' },
+  { icon Palette, label: 'Creativos', path: '/creativos' },
   { icon: Flag, label: 'OKRs', path: '/okrs' },
   { icon: Bot, label: 'Agentes IA', path: '/agentes' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },
