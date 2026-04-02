@@ -14,7 +14,486 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_conversations: {
+        Row: {
+          agent_id: string
+          brand: string
+          created_at: string | null
+          id: string
+          last_analysis: string | null
+          last_analysis_at: string | null
+          messages: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          brand: string
+          created_at?: string | null
+          id?: string
+          last_analysis?: string | null
+          last_analysis_at?: string | null
+          messages?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          brand?: string
+          created_at?: string | null
+          id?: string
+          last_analysis?: string | null
+          last_analysis_at?: string | null
+          messages?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      agent_daily_runs: {
+        Row: {
+          agent_id: string
+          brand: string
+          error_message: string | null
+          id: string
+          ran_at: string | null
+          result: string | null
+          status: string | null
+        }
+        Insert: {
+          agent_id: string
+          brand: string
+          error_message?: string | null
+          id?: string
+          ran_at?: string | null
+          result?: string | null
+          status?: string | null
+        }
+        Update: {
+          agent_id?: string
+          brand?: string
+          error_message?: string | null
+          id?: string
+          ran_at?: string | null
+          result?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      creativos: {
+        Row: {
+          angulo: string | null
+          brand: string
+          clicks: number | null
+          conversiones: number | null
+          cpa: number | null
+          cpc: number | null
+          creador: string | null
+          created_at: string | null
+          ctr: number | null
+          duracion_seg: number | null
+          estado: string | null
+          fecha_lanzamiento: string | null
+          formato: string | null
+          hook_text: string | null
+          id: string
+          impresiones: number | null
+          nombre: string
+          plataforma: string | null
+          revenue: number | null
+          roas: number | null
+          spend: number | null
+          tags: string[] | null
+          tipo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          angulo?: string | null
+          brand: string
+          clicks?: number | null
+          conversiones?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          creador?: string | null
+          created_at?: string | null
+          ctr?: number | null
+          duracion_seg?: number | null
+          estado?: string | null
+          fecha_lanzamiento?: string | null
+          formato?: string | null
+          hook_text?: string | null
+          id?: string
+          impresiones?: number | null
+          nombre: string
+          plataforma?: string | null
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+          tags?: string[] | null
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          angulo?: string | null
+          brand?: string
+          clicks?: number | null
+          conversiones?: number | null
+          cpa?: number | null
+          cpc?: number | null
+          creador?: string | null
+          created_at?: string | null
+          ctr?: number | null
+          duracion_seg?: number | null
+          estado?: string | null
+          fecha_lanzamiento?: string | null
+          formato?: string | null
+          hook_text?: string | null
+          id?: string
+          impresiones?: number | null
+          nombre?: string
+          plataforma?: string | null
+          revenue?: number | null
+          roas?: number | null
+          spend?: number | null
+          tags?: string[] | null
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      daily_metrics: {
+        Row: {
+          anuncios: number | null
+          brand: string
+          canal: string
+          cogs: number | null
+          comision_tts: number | null
+          costo_host: number | null
+          created_at: string | null
+          date: string
+          descuentos: number | null
+          devoluciones: number | null
+          edited_by: string | null
+          gastos_fijos: number | null
+          guias: number | null
+          id: string
+          iva_ads: number | null
+          nomina: number | null
+          pedidos: number | null
+          retenciones: number | null
+          source: string | null
+          updated_at: string | null
+          ventas_brutas: number | null
+        }
+        Insert: {
+          anuncios?: number | null
+          brand: string
+          canal: string
+          cogs?: number | null
+          comision_tts?: number | null
+          costo_host?: number | null
+          created_at?: string | null
+          date: string
+          descuentos?: number | null
+          devoluciones?: number | null
+          edited_by?: string | null
+          gastos_fijos?: number | null
+          guias?: number | null
+          id?: string
+          iva_ads?: number | null
+          nomina?: number | null
+          pedidos?: number | null
+          retenciones?: number | null
+          source?: string | null
+          updated_at?: string | null
+          ventas_brutas?: number | null
+        }
+        Update: {
+          anuncios?: number | null
+          brand?: string
+          canal?: string
+          cogs?: number | null
+          comision_tts?: number | null
+          costo_host?: number | null
+          created_at?: string | null
+          date?: string
+          descuentos?: number | null
+          devoluciones?: number | null
+          edited_by?: string | null
+          gastos_fijos?: number | null
+          guias?: number | null
+          id?: string
+          iva_ads?: number | null
+          nomina?: number | null
+          pedidos?: number | null
+          retenciones?: number | null
+          source?: string | null
+          updated_at?: string | null
+          ventas_brutas?: number | null
+        }
+        Relationships: []
+      }
+      kpis_monthly: {
+        Row: {
+          brand: string
+          clasificacion: string | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          kpi_name: string
+          kpi_slug: string
+          periodo: string
+          status: string | null
+          unidad: string | null
+          updated_at: string | null
+          valor_actual: number | null
+          valor_target: number | null
+        }
+        Insert: {
+          brand: string
+          clasificacion?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          kpi_name: string
+          kpi_slug: string
+          periodo: string
+          status?: string | null
+          unidad?: string | null
+          updated_at?: string | null
+          valor_actual?: number | null
+          valor_target?: number | null
+        }
+        Update: {
+          brand?: string
+          clasificacion?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          kpi_name?: string
+          kpi_slug?: string
+          periodo?: string
+          status?: string | null
+          unidad?: string | null
+          updated_at?: string | null
+          valor_actual?: number | null
+          valor_target?: number | null
+        }
+        Relationships: []
+      }
+      lives_analysis: {
+        Row: {
+          ads: number | null
+          aov: number | null
+          brand: string | null
+          costo_host: number | null
+          created_at: string | null
+          dalilo: number | null
+          duracion: string | null
+          envio_comision_tt: number | null
+          fecha: string
+          gasto_total: number | null
+          hora: string | null
+          host: string | null
+          id: string
+          impuestos: number | null
+          iva_ads: number | null
+          margen: number | null
+          mercancias: number | null
+          notas: string | null
+          pedidos: number | null
+          roas_live: number | null
+          roi: number | null
+          tatuajes: number | null
+          updated_at: string | null
+          utilidad: number | null
+          venta: number | null
+        }
+        Insert: {
+          ads?: number | null
+          aov?: number | null
+          brand?: string | null
+          costo_host?: number | null
+          created_at?: string | null
+          dalilo?: number | null
+          duracion?: string | null
+          envio_comision_tt?: number | null
+          fecha: string
+          gasto_total?: number | null
+          hora?: string | null
+          host?: string | null
+          id?: string
+          impuestos?: number | null
+          iva_ads?: number | null
+          margen?: number | null
+          mercancias?: number | null
+          notas?: string | null
+          pedidos?: number | null
+          roas_live?: number | null
+          roi?: number | null
+          tatuajes?: number | null
+          updated_at?: string | null
+          utilidad?: number | null
+          venta?: number | null
+        }
+        Update: {
+          ads?: number | null
+          aov?: number | null
+          brand?: string | null
+          costo_host?: number | null
+          created_at?: string | null
+          dalilo?: number | null
+          duracion?: string | null
+          envio_comision_tt?: number | null
+          fecha?: string
+          gasto_total?: number | null
+          hora?: string | null
+          host?: string | null
+          id?: string
+          impuestos?: number | null
+          iva_ads?: number | null
+          margen?: number | null
+          mercancias?: number | null
+          notas?: string | null
+          pedidos?: number | null
+          roas_live?: number | null
+          roi?: number | null
+          tatuajes?: number | null
+          updated_at?: string | null
+          utilidad?: number | null
+          venta?: number | null
+        }
+        Relationships: []
+      }
+      margin_scenarios: {
+        Row: {
+          aov: number | null
+          brand: string
+          costo_host: number | null
+          cpa_proyectado: number | null
+          created_at: string | null
+          id: string
+          margen_estimado: number | null
+          nombre: string
+          profit_unitario: number | null
+          roas_objetivo: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          aov?: number | null
+          brand: string
+          costo_host?: number | null
+          cpa_proyectado?: number | null
+          created_at?: string | null
+          id?: string
+          margen_estimado?: number | null
+          nombre: string
+          profit_unitario?: number | null
+          roas_objetivo?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          aov?: number | null
+          brand?: string
+          costo_host?: number | null
+          cpa_proyectado?: number | null
+          created_at?: string | null
+          id?: string
+          margen_estimado?: number | null
+          nombre?: string
+          profit_unitario?: number | null
+          roas_objetivo?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      okrs: {
+        Row: {
+          brand: string
+          created_at: string | null
+          id: string
+          kr_items: Json | null
+          objetivo: string
+          periodo: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          brand: string
+          created_at?: string | null
+          id?: string
+          kr_items?: Json | null
+          objetivo: string
+          periodo: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          brand?: string
+          created_at?: string | null
+          id?: string
+          kr_items?: Json | null
+          objetivo?: string
+          periodo?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      organico_posts: {
+        Row: {
+          angulo: string | null
+          brand: string
+          caption: string | null
+          comentarios: number | null
+          created_at: string | null
+          es_viral: boolean | null
+          fecha_publicacion: string | null
+          hashtags: string[] | null
+          id: string
+          likes: number | null
+          plataforma: string
+          saves: number | null
+          shares: number | null
+          tipo: string | null
+          updated_at: string | null
+          views: number | null
+        }
+        Insert: {
+          angulo?: string | null
+          brand: string
+          caption?: string | null
+          comentarios?: number | null
+          created_at?: string | null
+          es_viral?: boolean | null
+          fecha_publicacion?: string | null
+          hashtags?: string[] | null
+          id?: string
+          likes?: number | null
+          plataforma: string
+          saves?: number | null
+          shares?: number | null
+          tipo?: string | null
+          updated_at?: string | null
+          views?: number | null
+        }
+        Update: {
+          angulo?: string | null
+          brand?: string
+          caption?: string | null
+          comentarios?: number | null
+          created_at?: string | null
+          es_viral?: boolean | null
+          fecha_publicacion?: string | null
+          hashtags?: string[] | null
+          id?: string
+          likes?: number | null
+          plataforma?: string
+          saves?: number | null
+          shares?: number | null
+          tipo?: string | null
+          updated_at?: string | null
+          views?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
