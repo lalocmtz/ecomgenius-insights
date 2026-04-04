@@ -4,7 +4,7 @@ import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
 import { DollarSign, TrendingUp, TrendingDown, ShoppingCart, Target, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, Legend,
+  BarChart, Bar, CartesianGrid, Cell, ReferenceLine,
 } from 'recharts';
 import { useMemo, useState } from 'react';
 import { Progress } from '@/components/ui/progress';
