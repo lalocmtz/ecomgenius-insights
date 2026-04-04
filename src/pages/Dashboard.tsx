@@ -4,10 +4,9 @@ import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
 import { DollarSign, TrendingUp, TrendingDown, ShoppingCart, Target, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, CartesianGrid, Legend,
+  BarChart, Bar, CartesianGrid, Cell, ReferenceLine,
 } from 'recharts';
 import { useMemo, useState } from 'react';
-import { Progress } from '@/components/ui/progress';
 
 const CANAL_ICONS: Record<string, string> = {
   'Meta': '📘', 'Google': '🔍', 'TikTok Ads': '📱', 'GMV MAX': '🎵',
@@ -22,13 +21,17 @@ const CANAL_COLORS: Record<string, string> = {
   'Amazon': '#FF9900', 'Burbuxa': '#A78BFA',
 };
 
-function calcProfit(rows: MetricRow[]) {
-  return rows.reduce((s, r) => {
-    const vn = r.ventas_brutas - r.descuentos - r.devoluciones;
-    const cost = r.cogs + r.guias + r.comision_tts + r.iva_ads + r.retenciones + r.anuncios + r.gastos_fijos;
-    return s + vn - cost;
-  }, 0);
-}
+const ANALYSIS_TABS = [
+  { key: 'ventas', label: 'Ventas' },
+  { key: 'ads', label: 'Gasto Ads' },
+  { key: 'profit', label: 'Profit' },
+  { key: 'roas', label: 'ROAS' },
+  { key: 'avance', label: '% Avance vs Meta' },
+  { key: 'pedidos', label: 'Pedidos' },
+  { key: 'tendencia', label: 'Tendencia' },
+] as const;
+
+type AnalysisTab = typeof ANALYSIS_TABS[number]['key'];
 
 function SparkLine({ data, color = '#22c55e', height = 32 }: { data: number[]; color?: string; height?: number }) {
   if (data.length < 2) return null;
@@ -56,6 +59,122 @@ function ChangeBadge({ current, previous }: { current: number; previous: number 
   );
 }
 
+interface ChannelDatum {
+  canal: string; ventas: number; meta: number; avance: number;
+  ads: number; roas: number; profit: number; pedidos: number;
+  trendPct: number; sparkData: number[];
+}
+
+function ChannelAnalysis({ channelData, metrics, accentColor, ritmoEsperado }: {
+  channelData: ChannelDatum[]; metrics: MetricRow[]; accentColor: string; ritmoEsperado: number;
+}) {
+  const [activeTab, setActiveTab] = useState<AnalysisTab>('ventas');
+
+  const trendData = useMemo(() => {
+    if (activeTab !== 'tendencia') return [];
+    const dateMap: Record<string, Record<string, number>> = {};
+    metrics.forEach(m => {
+      if (!dateMap[m.date]) dateMap[m.date] = {};
+      dateMap[m.date][m.canal] = (dateMap[m.date][m.canal] || 0) + m.ventas_brutas;
+    });
+    return Object.entries(dateMap).sort(([a], [b]) => a.localeCompare(b)).map(([date, canals]) => ({
+      date: date.slice(5).replace('-', '/'),
+      ...canals,
+    }));
+  }, [metrics, activeTab]);
+
+  const barData = useMemo(() => {
+    if (activeTab === 'tendencia') return [];
+    const sorted = [...channelData];
+    switch (activeTab) {
+      case 'ventas': return sorted.sort((a, b) => b.ventas - a.ventas).map(c => ({ canal: c.canal, value: c.ventas, fill: CANAL_COLORS[c.canal] || '#6B7280' }));
+      case 'ads': return sorted.sort((a, b) => b.ads - a.ads).map(c => ({ canal: c.canal, value: c.ads, fill: CANAL_COLORS[c.canal] || '#6B7280' }));
+      case 'profit': return sorted.sort((a, b) => b.profit - a.profit).map(c => ({ canal: c.canal, value: c.profit, fill: c.profit >= 0 ? '#22c55e' : '#ef4444' }));
+      case 'roas': return sorted.filter(c => c.ads > 0).sort((a, b) => b.roas - a.roas).map(c => ({ canal: c.canal, value: c.roas, fill: CANAL_COLORS[c.canal] || '#6B7280' }));
+      case 'avance': return sorted.filter(c => c.meta > 0).sort((a, b) => b.avance - a.avance).map(c => {
+        const fill = c.avance >= ritmoEsperado ? '#22c55e' : c.avance >= ritmoEsperado * 0.7 ? '#eab308' : '#ef4444';
+        return { canal: c.canal, value: c.avance, fill };
+      });
+      case 'pedidos': return sorted.sort((a, b) => b.pedidos - a.pedidos).map(c => ({ canal: c.canal, value: c.pedidos, fill: CANAL_COLORS[c.canal] || '#6B7280' }));
+      default: return [];
+    }
+  }, [channelData, activeTab, ritmoEsperado]);
+
+  const formatValue = (v: number) => {
+    switch (activeTab) {
+      case 'roas': return formatROAS(v);
+      case 'avance': return formatPct(v);
+      case 'pedidos': return v.toLocaleString();
+      default: return formatMXN(v);
+    }
+  };
+
+  const canalNames = useMemo(() => [...new Set(metrics.map(m => m.canal))], [metrics]);
+  const barHeight = Math.max(200, barData.length * 36);
+
+  return (
+    <div className="bg-card rounded-lg border border-border p-5">
+      <h3 className="text-sm font-medium text-foreground mb-3">Análisis por Canal</h3>
+      {/* Tabs */}
+      <div className="flex gap-1.5 overflow-x-auto pb-3 mb-3 scrollbar-none">
+        {ANALYSIS_TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors ${
+              activeTab === tab.key
+                ? 'bg-orange-500 text-white'
+                : 'bg-secondary text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Chart area */}
+      <div className="transition-opacity duration-200">
+        {activeTab === 'tendencia' ? (
+          trendData.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-16 text-center">Sin datos</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,0%,18%)" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} width={55} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,18%)', borderRadius: 8, fontSize: 12, color: '#fff' }} />
+                {canalNames.map(canal => (
+                  <Line key={canal} type="monotone" dataKey={canal} stroke={CANAL_COLORS[canal] || '#6B7280'} strokeWidth={2} dot={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          )
+        ) : barData.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-16 text-center">Sin datos</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={barHeight}>
+            <BarChart data={barData} layout="vertical" margin={{ left: 0, right: 50 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,0%,18%)" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false}
+                tickFormatter={(v) => activeTab === 'roas' ? `${v.toFixed(1)}x` : activeTab === 'avance' ? `${v.toFixed(0)}%` : activeTab === 'pedidos' ? v.toLocaleString() : `$${(v / 1000).toFixed(0)}k`} />
+              <YAxis type="category" dataKey="canal" tick={{ fontSize: 11, fill: 'hsl(0,0%,70%)' }} axisLine={false} tickLine={false} width={100} />
+              <Tooltip
+                contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,18%)', borderRadius: 8, fontSize: 12, color: '#fff' }}
+                formatter={(value: number) => [formatValue(value), ANALYSIS_TABS.find(t => t.key === activeTab)?.label || '']}
+              />
+              {activeTab === 'avance' && <ReferenceLine x={100} stroke="#fff" strokeDasharray="4 4" strokeOpacity={0.5} />}
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} label={{ position: 'right', fontSize: 10, fill: 'hsl(0,0%,70%)', formatter: (v: number) => formatValue(v) }}>
+                {barData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { activeBrand } = useAppStore();
   const isFI = activeBrand === 'feel_ink';
@@ -76,9 +195,7 @@ export default function Dashboard() {
 
   // ─── Meta ventas from KPIs ───
   const metaVentas = useMemo(() => {
-    return kpis
-      .filter(k => k.kpi_slug.startsWith('ventas_'))
-      .reduce((s, k) => s + (k.valor_target || 0), 0);
+    return kpis.filter(k => k.kpi_slug.startsWith('ventas_')).reduce((s, k) => s + (k.valor_target || 0), 0);
   }, [kpis]);
 
   const avanceMeta = metaVentas ? (ventasBrutas / metaVentas) * 100 : 0;
@@ -126,20 +243,14 @@ export default function Dashboard() {
       const cost = m.cogs + m.guias + m.comision_tts + m.iva_ads + m.retenciones + m.anuncios + m.gastos_fijos;
       byCanal[m.canal].profit += vn - cost;
     });
-
-    // Build daily arrays per canal
     const sortedDates = [...dateSet].sort();
     Object.keys(byCanal).forEach(canal => {
-      byCanal[canal].daily = sortedDates.map(date => {
-        return metrics.filter(m => m.canal === canal && m.date === date).reduce((s, m) => s + m.ventas_brutas, 0);
-      });
+      byCanal[canal].daily = sortedDates.map(date =>
+        metrics.filter(m => m.canal === canal && m.date === date).reduce((s, m) => s + m.ventas_brutas, 0)
+      );
     });
-
     return Object.entries(byCanal).map(([canal, d]) => {
-      const kpi = kpis.find(k => {
-        const mapped = KPI_CANAL_MAP[k.kpi_slug];
-        return mapped === canal;
-      });
+      const kpi = kpis.find(k => KPI_CANAL_MAP[k.kpi_slug] === canal);
       const meta = kpi?.valor_target || 0;
       const avance = meta ? (d.ventas / meta) * 100 : 0;
       const roas = d.ads ? d.ventas / d.ads : 0;
@@ -148,18 +259,16 @@ export default function Dashboard() {
       const sumLast = last7d.reduce((a, b) => a + b, 0);
       const sumPrev = prev7d.reduce((a, b) => a + b, 0);
       const trendPct = sumPrev ? ((sumLast - sumPrev) / sumPrev) * 100 : 0;
-
       return { canal, ventas: d.ventas, meta, avance, ads: d.ads, roas, profit: d.profit, pedidos: d.pedidos, trendPct, sparkData: d.daily.slice(-7) };
     });
   }, [metrics, kpis]);
 
   const sortedChannels = useMemo(() => {
-    const sorted = [...channelData].sort((a, b) => {
+    return [...channelData].sort((a, b) => {
       const va = (a as any)[sortCol] ?? 0;
       const vb = (b as any)[sortCol] ?? 0;
       return sortDir === 'desc' ? vb - va : va - vb;
     });
-    return sorted;
   }, [channelData, sortCol, sortDir]);
 
   const handleSort = (col: string) => {
@@ -176,23 +285,6 @@ export default function Dashboard() {
       utilidad: Math.round(v.utilidad),
     }));
   }, [dailyTotals]);
-
-  // ─── Pie chart data ───
-  const pieData = useMemo(() => {
-    const byCanal: Record<string, number> = {};
-    metrics.forEach(m => { byCanal[m.canal] = (byCanal[m.canal] || 0) + m.ventas_brutas; });
-    const total = Object.values(byCanal).reduce((a, b) => a + b, 0) || 1;
-    return Object.entries(byCanal)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, value]) => ({ name, value, pct: ((value / total) * 100).toFixed(1), color: CANAL_COLORS[name] || '#6B7280' }));
-  }, [metrics]);
-
-  // ─── Profit bar chart ───
-  const profitBarData = useMemo(() => {
-    return [...channelData]
-      .sort((a, b) => b.profit - a.profit)
-      .map(c => ({ canal: c.canal, profit: Math.round(c.profit), fill: c.profit >= 0 ? '#22c55e' : '#ef4444' }));
-  }, [channelData]);
 
   const accentColor = isFI ? 'hsl(14,100%,57%)' : 'hsl(160,76%,36%)';
   const brandLabel = isFI ? 'Feel Ink' : 'Skinglow';
@@ -328,16 +420,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ─── CHARTS ─── */}
+      {/* ─── CHARTS: Tendencia Diaria + Análisis por Canal ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Area Chart - Tendencia Diaria */}
-        <div className="bg-card rounded-lg border border-border p-5 lg:col-span-1">
+        <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-medium text-foreground mb-1">Tendencia Diaria</h3>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-4">Ventas brutas + Utilidad</p>
           {areaData.length === 0 ? (
             <p className="text-xs text-muted-foreground py-16 text-center">Sin datos</p>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={areaData}>
                 <defs>
                   <linearGradient id="gradVentas" x1="0" y1="0" x2="0" y2="1">
@@ -359,62 +451,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Right column: Pie + Bar */}
-        <div className="space-y-4">
-          {/* Pie Chart */}
-          <div className="bg-card rounded-lg border border-border p-5">
-            <h3 className="text-sm font-medium text-foreground mb-3">Mix por Canal</h3>
-            {pieData.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-8 text-center">Sin datos</p>
-            ) : (
-              <div className="flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <ResponsiveContainer width={140} height={140}>
-                    <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={65} dataKey="value" stroke="none">
-                        {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-sm font-medium text-foreground">{formatMXN(ventasBrutas)}</span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5 text-xs min-w-0">
-                  {pieData.map(d => (
-                    <div key={d.name} className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-                      <span className="text-muted-foreground truncate">{d.name}</span>
-                      <span className="text-foreground ml-auto tabular-nums">{d.pct}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Profit Bar Chart */}
-          <div className="bg-card rounded-lg border border-border p-5">
-            <h3 className="text-sm font-medium text-foreground mb-3">Profit por Canal</h3>
-            {profitBarData.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-8 text-center">Sin datos</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(120, profitBarData.length * 28)}>
-                <BarChart data={profitBarData} layout="vertical" margin={{ left: 0, right: 10 }}>
-                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                  <YAxis type="category" dataKey="canal" tick={{ fontSize: 10, fill: 'hsl(0,0%,70%)' }} axisLine={false} tickLine={false} width={90} />
-                  <Tooltip
-                    contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,18%)', borderRadius: 8, fontSize: 12, color: '#fff' }}
-                    formatter={(value: number) => [formatMXN(value), 'Profit']}
-                  />
-                  <Bar dataKey="profit" radius={[0, 4, 4, 0]}>
-                    {profitBarData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
+        {/* Análisis por Canal */}
+        <ChannelAnalysis channelData={channelData} metrics={metrics} accentColor={accentColor} ritmoEsperado={ritmoEsperado} />
       </div>
     </div>
   );
