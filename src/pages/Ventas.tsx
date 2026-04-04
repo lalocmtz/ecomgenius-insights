@@ -169,7 +169,7 @@ export default function Ventas() {
 
   if (isLoading) return <div className="animate-pulse h-64 bg-gray-800 rounded-lg" />;
 
-  const accentColor = activeBrand === 'Feel Ink' ? '#f97316' : '#1A8A72';
+  const accentColor = activeBrand === 'feel_ink' ? '#f97316' : '#1A8A72';
 
   const CHART_TABS = [
     { key: 'ventas' as const, label: 'Ventas' },
