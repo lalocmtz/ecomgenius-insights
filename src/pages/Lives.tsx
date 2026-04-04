@@ -2,10 +2,11 @@ import { useState, useMemo } from 'react';
 import { useLives, useUpdateCell } from '@/hooks/useSupabaseData';
 import { useAppStore } from '@/store/useAppStore';
 import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
-import { DollarSign, Target, BarChart3, Radio, Plus, X, ChevronUp, ChevronDown, Calculator } from 'lucide-react';
+import { DollarSign, Target, BarChart3, Radio, Plus, X, ChevronUp, ChevronDown, Calculator, TrendingUp, Lightbulb, PieChart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const HOSTS = ['DENISSE', 'EMILIO', 'FER', 'KARO'];
 const HOST_COLORS: Record<string, string> = {
@@ -15,24 +16,41 @@ const HOST_COLORS: Record<string, string> = {
 type SortKey = 'fecha' | 'host' | 'venta' | 'roas_live' | 'utilidad' | 'margen';
 type SortDir = 'asc' | 'desc';
 
+// Brand-specific cost formulas
+function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: number, pedidos: number) {
+  const isFI = brand === 'feel_ink';
+  const producto = venta * (isFI ? 0.12 : 0.2498);
+  const guias = venta * 0.06;
+  const ivaAds = ads * 0.16;
+  const comisionTT = venta * 0.08;
+  const retenciones = venta * 0.0903;
+  const contador = isFI ? 0 : venta * 0.02;
+  const totalCostos = ads + producto + guias + ivaAds + comisionTT + retenciones + contador + costoHost;
+  const utilidad = venta - totalCostos;
+  const margen = venta > 0 ? (utilidad / venta) * 100 : 0;
+  const roas = ads > 0 ? venta / ads : 0;
+  const aov = pedidos > 0 ? venta / pedidos : 0;
+  return { producto, guias, ivaAds, comisionTT, retenciones, contador, totalCostos, utilidad, margen, roas, aov };
+}
+
 export default function Lives() {
   const { activeBrand } = useAppStore();
   const { data: livesData, isLoading } = useLives();
+  const updateCell = useUpdateCell('lives_analysis');
   const queryClient = useQueryClient();
 
   const [hostFilter, setHostFilter] = useState('Todos');
   const [sortKey, setSortKey] = useState<SortKey>('fecha');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showModal, setShowModal] = useState(false);
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
 
-  // Calculator state
-  const [calc, setCalc] = useState({ venta: 0, ads: 0, mercancia: 0, costoHost: 0, pedidos: 0 });
+  // Calculator state — only 4 inputs
+  const [calc, setCalc] = useState({ venta: 0, ads: 0, costoHost: 0, pedidos: 0 });
 
   const filtered = useMemo(() => {
-    let rows = (livesData || []).filter((l) => {
-      if (hostFilter !== 'Todos' && l.host !== hostFilter) return false;
-      return true;
-    });
+    let rows = (livesData || []).filter(l => hostFilter === 'Todos' || l.host === hostFilter);
     rows.sort((a, b) => {
       const av = a[sortKey] ?? 0;
       const bv = b[sortKey] ?? 0;
@@ -44,38 +62,32 @@ export default function Lives() {
   }, [livesData, hostFilter, sortKey, sortDir]);
 
   const totalVentas = filtered.reduce((s, l) => s + (l.venta || 0), 0);
+  const totalAds = filtered.reduce((s, l) => s + (l.ads || 0), 0);
   const avgRoas = filtered.length ? filtered.reduce((s, l) => s + (l.roas_live || 0), 0) / filtered.length : 0;
   const avgMargen = filtered.length ? filtered.reduce((s, l) => s + (l.margen || 0), 0) / filtered.length : 0;
 
-  // Host stats
-  const hostStats = useMemo(() => {
-    return HOSTS.map((h) => {
-      const hLives = (livesData || []).filter((l) => l.host === h);
-      if (!hLives.length) return { host: h, count: 0, revenue: 0, roas: 0, margen: 0 };
-      return {
-        host: h,
-        count: hLives.length,
-        revenue: hLives.reduce((s, l) => s + (l.venta || 0), 0),
-        roas: hLives.reduce((s, l) => s + (l.roas_live || 0), 0) / hLives.length,
-        margen: hLives.reduce((s, l) => s + (l.margen || 0), 0) / hLives.length,
-      };
-    }).filter(h => h.count > 0);
-  }, [livesData]);
+  // Calculator computed
+  const calcResults = useMemo(() => computeLiveCosts(activeBrand, calc.venta, calc.ads, calc.costoHost, calc.pedidos), [calc, activeBrand]);
 
-  // Calculator computed values
-  const calcResults = useMemo(() => {
-    const { venta, ads, mercancia, costoHost, pedidos } = calc;
-    const comisionTT = venta * 0.08;
-    const retenciones = venta * 0.105;
-    const ivaAds = ads * 0.16;
-    const guias = activeBrand === 'feel_ink' ? pedidos * 126 : pedidos * 100;
-    const aov = pedidos > 0 ? venta / pedidos : 0;
-    const roas = ads > 0 ? venta / ads : 0;
-    const totalCostos = ads + mercancia + costoHost + comisionTT + retenciones + ivaAds + guias;
-    const utilidad = venta - totalCostos;
-    const margen = venta > 0 ? (utilidad / venta) * 100 : 0;
-    return { aov, roas, comisionTT, retenciones, ivaAds, guias, totalCostos, utilidad, margen };
-  }, [calc, activeBrand]);
+  // Cost breakdown for Análisis de Rendimiento (from aggregated filtered data)
+  const costBreakdown = useMemo(() => {
+    if (!filtered.length || totalVentas === 0) return null;
+    const agg = computeLiveCosts(activeBrand, totalVentas, totalAds,
+      filtered.reduce((s, l) => s + (l.costo_host || 0), 0),
+      filtered.reduce((s, l) => s + (l.pedidos || 0), 0));
+    const items = [
+      { name: 'Producto', value: agg.producto, color: '#f97316' },
+      { name: 'Guías', value: agg.guias, color: '#3b82f6' },
+      { name: 'Ads', value: totalAds, color: '#ef4444' },
+      { name: 'IVA Ads', value: agg.ivaAds, color: '#a855f7' },
+      { name: 'Comisión TT', value: agg.comisionTT, color: '#22c55e' },
+      { name: 'Retenciones', value: agg.retenciones, color: '#eab308' },
+      { name: 'Costo Host', value: filtered.reduce((s, l) => s + (l.costo_host || 0), 0), color: '#ec4899' },
+    ];
+    if (!activeBrand.startsWith('feel')) items.splice(5, 0, { name: 'Contador', value: agg.contador, color: '#06b6d4' });
+    const total = items.reduce((s, i) => s + i.value, 0);
+    return { items, total, margen: agg.margen, utilidad: agg.utilidad };
+  }, [filtered, totalVentas, totalAds, activeBrand]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -87,6 +99,96 @@ export default function Lives() {
     return sortDir === 'asc' ? <ChevronUp size={12} className="text-orange-400" /> : <ChevronDown size={12} className="text-orange-400" />;
   };
 
+  // Inline editing handlers
+  const startEdit = (id: string, field: string, currentValue: string | number | null) => {
+    setEditingCell({ id, field });
+    setEditValue(String(currentValue ?? ''));
+  };
+
+  const saveEdit = async (id: string, field: string) => {
+    setEditingCell(null);
+    const row = livesData?.find(l => l.id === id);
+    if (!row) return;
+
+    const newVal = field === 'host' || field === 'duracion' || field === 'fecha' ? editValue : Number(editValue) || 0;
+    
+    // For manual fields, also recompute derived fields
+    const manualFields = ['pedidos', 'venta', 'ads', 'costo_host'];
+    if (manualFields.includes(field) || field === 'fecha' || field === 'host' || field === 'duracion') {
+      const updatedRow = { ...row, [field]: newVal };
+      const v = Number(updatedRow.venta) || 0;
+      const a = Number(updatedRow.ads) || 0;
+      const ch = Number(updatedRow.costo_host) || 0;
+      const p = Number(updatedRow.pedidos) || 0;
+      const costs = computeLiveCosts(activeBrand, v, a, ch, p);
+
+      const { error } = await supabase.from('lives_analysis').update({
+        [field]: newVal,
+        mercancias: costs.producto,
+        roas_live: costs.roas,
+        aov: costs.aov,
+        utilidad: costs.utilidad,
+        margen: costs.margen / 100,
+        gasto_total: costs.totalCostos,
+        envio_comision_tt: costs.comisionTT,
+        iva_ads: costs.ivaAds,
+        impuestos: costs.retenciones,
+      }).eq('id', id);
+      if (error) toast.error('Error: ' + error.message);
+      else { toast.success('✓ Guardado'); queryClient.invalidateQueries({ queryKey: ['lives'] }); }
+    } else {
+      updateCell.mutate({ id, field, value: newVal });
+    }
+  };
+
+  const EditableTableCell = ({ id, field, value, format, className = '' }: { id: string; field: string; value: string | number | null; format?: (v: number) => string; className?: string }) => {
+    const isEditing = editingCell?.id === id && editingCell?.field === field;
+    const editable = ['fecha', 'host', 'duracion', 'pedidos', 'venta', 'ads', 'costo_host'].includes(field);
+
+    if (isEditing && editable) {
+      return (
+        <td className="px-3 py-2">
+          {field === 'host' ? (
+            <select
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onBlur={() => saveEdit(id, field)}
+              autoFocus
+              className="bg-[#1a1a1a] border border-orange-500 rounded px-2 py-1 text-xs text-white outline-none w-20"
+            >
+              {HOSTS.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          ) : (
+            <input
+              type={field === 'fecha' ? 'date' : field === 'duracion' ? 'text' : 'number'}
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onBlur={() => saveEdit(id, field)}
+              onKeyDown={e => { if (e.key === 'Enter') saveEdit(id, field); if (e.key === 'Escape') setEditingCell(null); }}
+              autoFocus
+              className="bg-[#1a1a1a] border border-orange-500 rounded px-2 py-1 text-xs text-white outline-none w-20"
+            />
+          )}
+        </td>
+      );
+    }
+
+    const display = format && typeof value === 'number' ? format(value) : (value ?? '—');
+    return (
+      <td
+        className={`px-3 py-2 ${editable ? 'cursor-pointer hover:bg-orange-500/10' : ''} ${className}`}
+        onClick={editable ? () => startEdit(id, field, value) : undefined}
+      >
+        {display}
+      </td>
+    );
+  };
+
+  // AI Recommendations (static/computed)
+  const isFI = activeBrand === 'feel_ink';
+  const roasTarget = isFI ? 4.0 : 1.74;
+  const adsPctOfSales = totalVentas > 0 ? (totalAds / totalVentas * 100) : 0;
+
   if (isLoading) return (
     <div className="animate-pulse space-y-4 p-6">
       <div className="h-8 bg-gray-800 rounded w-48" />
@@ -97,30 +199,21 @@ export default function Lives() {
   return (
     <div className="space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">Lives Intelligence</p>
           <h1 className="text-2xl font-medium text-white">Análisis de Lives</h1>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Host filter pills */}
-          <div className="flex gap-1.5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex gap-1.5 overflow-x-auto">
             {['Todos', ...HOSTS].map(h => (
-              <button
-                key={h}
-                onClick={() => setHostFilter(h)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  hostFilter === h ? 'bg-orange-500 text-white' : 'bg-[#1e1e1e] text-gray-400 hover:text-white'
-                }`}
-              >
-                {h}
-              </button>
+              <button key={h} onClick={() => setHostFilter(h)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${hostFilter === h ? 'bg-orange-500 text-white' : 'bg-[#1e1e1e] text-gray-400 hover:text-white'}`}
+              >{h}</button>
             ))}
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-          >
+          <button onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
             <Plus size={14} /> Agregar Live
           </button>
         </div>
@@ -134,70 +227,155 @@ export default function Lives() {
         <KpiCard label="Total Lives" value={String(filtered.length)} icon={<Radio size={14} />} />
       </div>
 
-      {/* Middle Row: Host Performance + Calculator */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Host Performance */}
-        <div className="bg-[#111111] rounded-xl border border-gray-800/60 p-5">
-          <h3 className="text-sm font-medium text-white mb-4">Desempeño por Host</h3>
-          <div className="space-y-3">
-            {hostStats.map((h) => (
-              <div key={h.host} className="flex items-center gap-3 p-3 rounded-lg bg-[#1a1a1a] hover:bg-[#222] transition-colors">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: (HOST_COLORS[h.host] || '#888') + '33', color: HOST_COLORS[h.host] || '#888' }}
-                >
-                  {h.host.slice(0, 2)}
+      {/* Middle Row: Análisis de Rendimiento + Calculator */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* LEFT: Análisis de Rendimiento (2 cols) */}
+        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Desglose de Costos */}
+          <div className="bg-[#111111] rounded-xl border border-gray-800/60 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <PieChart size={14} className="text-orange-400" />
+              <h3 className="text-sm font-medium text-white">Desglose de Costos</h3>
+            </div>
+            {costBreakdown ? (
+              <>
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-28 h-28">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RePieChart>
+                        <Pie data={costBreakdown.items} dataKey="value" cx="50%" cy="50%" innerRadius={25} outerRadius={50} strokeWidth={0}>
+                          {costBreakdown.items.map((item, i) => <Cell key={i} fill={item.color} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => formatMXN(v)} contentStyle={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 8, fontSize: 11 }} />
+                      </RePieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-2xl font-semibold ${costBreakdown.margen >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {costBreakdown.margen.toFixed(1)}%
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500">Margen Total</p>
+                    <p className={`text-sm font-medium mt-1 ${costBreakdown.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {formatMXN(costBreakdown.utilidad)}
+                    </p>
+                    <p className="text-[10px] text-gray-500">Utilidad</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-white">{h.host}</span>
-                  <p className="text-[10px] text-gray-500">{h.count} lives · {formatMXN(h.revenue)}</p>
+                <div className="space-y-1.5">
+                  {costBreakdown.items.map(item => {
+                    const pct = costBreakdown.total > 0 ? (item.value / costBreakdown.total * 100) : 0;
+                    return (
+                      <div key={item.name} className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-[10px] text-gray-400 w-20 truncate">{item.name}</span>
+                        <div className="flex-1 bg-gray-800 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: item.color }} />
+                        </div>
+                        <span className="text-[10px] text-gray-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                        <span className="text-[10px] text-gray-500 w-16 text-right">{formatMXN(item.value)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-400">ROAS {formatROAS(h.roas)}</p>
-                  <p className={`text-xs font-medium ${h.margen >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {formatPct(h.margen * 100)}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-8">Sin datos</p>
+            )}
+          </div>
+
+          {/* Recomendaciones IA */}
+          <div className="bg-[#111111] rounded-xl border border-gray-800/60 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb size={14} className="text-orange-400" />
+              <h3 className="text-sm font-medium text-white">Recomendaciones IA</h3>
+            </div>
+            <div className="space-y-3">
+              {/* ROAS Target */}
+              <div className="bg-[#1a1a1a] rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Target size={12} className="text-orange-400" />
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500">ROAS Objetivo</span>
+                </div>
+                <p className="text-lg font-semibold text-white">{roasTarget.toFixed(2)}x</p>
+                <p className="text-[10px] text-gray-500">
+                  {isFI ? 'Para Feel Ink el ROAS mínimo rentable es 4.0x' : 'Para Skinglow el ROAS mínimo rentable es 1.74x'}
+                </p>
+                {avgRoas > 0 && (
+                  <p className={`text-xs mt-1 ${avgRoas >= roasTarget ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {avgRoas >= roasTarget ? '✓ Estás por encima del objetivo' : `✗ Necesitas mejorar ${(roasTarget - avgRoas).toFixed(2)}x`}
                   </p>
-                </div>
+                )}
               </div>
-            ))}
-            {hostStats.length === 0 && <p className="text-sm text-gray-500 text-center py-4">Sin datos de hosts</p>}
+
+              {/* Ad spend insight */}
+              <div className="bg-[#1a1a1a] rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp size={12} className="text-blue-400" />
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500">Gasto Publicitario</span>
+                </div>
+                {totalVentas > 0 ? (
+                  <>
+                    <p className="text-sm text-gray-300">
+                      Ads representan <span className="text-white font-semibold">{adsPctOfSales.toFixed(1)}%</span> de las ventas
+                    </p>
+                    {adsPctOfSales > 25 && (
+                      <p className="text-[10px] text-yellow-400 mt-1">
+                        ⚠ Reducir gasto al 20% mejoraría el ROAS a {(totalVentas / (totalVentas * 0.2)).toFixed(2)}x
+                      </p>
+                    )}
+                    {adsPctOfSales <= 25 && adsPctOfSales > 0 && (
+                      <p className="text-[10px] text-emerald-400 mt-1">
+                        ✓ Buen ratio de gasto publicitario
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500">Sin datos suficientes</p>
+                )}
+              </div>
+
+              {/* Volume recommendation */}
+              <div className="bg-[#1a1a1a] rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Radio size={12} className="text-emerald-400" />
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500">Volumen</span>
+                </div>
+                <p className="text-xs text-gray-300">
+                  {filtered.length > 0
+                    ? `Promedio por live: ${formatMXN(totalVentas / filtered.length)}. ${filtered.length < 15 ? 'Incrementar frecuencia a 15+ lives/mes puede mejorar resultados.' : '✓ Buena frecuencia de lives.'}`
+                    : 'Sin datos suficientes'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Live Calculator */}
-        <div className="bg-[#111111] rounded-xl border border-gray-800/60 p-5">
-          <div className="flex items-center gap-2 mb-4">
+        {/* RIGHT: Compact Calculator */}
+        <div className="bg-[#111111] rounded-xl border border-gray-800/60 p-4">
+          <div className="flex items-center gap-2 mb-3">
             <Calculator size={14} className="text-orange-400" />
-            <h3 className="text-sm font-medium text-white">Calculadora de Live</h3>
+            <h3 className="text-sm font-medium text-white">Calculadora</h3>
+            <span className="text-[10px] text-gray-500 ml-auto">{isFI ? 'Feel Ink' : 'Skinglow'}</span>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-3">
             <CalcInput label="Venta Total" value={calc.venta} onChange={v => setCalc(c => ({ ...c, venta: v }))} />
             <CalcInput label="Gasto Ads" value={calc.ads} onChange={v => setCalc(c => ({ ...c, ads: v }))} />
-            <CalcInput label="Costo Mercancía" value={calc.mercancia} onChange={v => setCalc(c => ({ ...c, mercancia: v }))} />
             <CalcInput label="Costo Host" value={calc.costoHost} onChange={v => setCalc(c => ({ ...c, costoHost: v }))} />
             <CalcInput label="Pedidos" value={calc.pedidos} onChange={v => setCalc(c => ({ ...c, pedidos: v }))} />
           </div>
-          <div className="border-t border-gray-800 pt-3 space-y-1.5">
+          <div className="border-t border-gray-800 pt-2 space-y-1">
             <CalcRow label="AOV" value={calc.pedidos > 0 ? formatMXN(calcResults.aov) : '—'} />
             <CalcRow label="ROAS" value={calc.ads > 0 ? formatROAS(calcResults.roas) : '—'} />
-            <CalcRow label="Comisión TikTok (8%)" value={formatMXN(calcResults.comisionTT)} />
-            <CalcRow label="Retenciones (10.5%)" value={formatMXN(calcResults.retenciones)} />
+            <CalcRow label={`Producto (${isFI ? '12' : '24.98'}%)`} value={formatMXN(calcResults.producto)} />
+            <CalcRow label="Guías (6%)" value={formatMXN(calcResults.guias)} />
             <CalcRow label="IVA Ads (16%)" value={formatMXN(calcResults.ivaAds)} />
-            <CalcRow label={`Guías (${activeBrand === 'feel_ink' ? '$126' : '$100'}/pedido)`} value={formatMXN(calcResults.guias)} />
-            <div className="border-t border-gray-700 pt-2 mt-2">
+            <CalcRow label="Comisión TT (8%)" value={formatMXN(calcResults.comisionTT)} />
+            <CalcRow label="Retenciones (9.03%)" value={formatMXN(calcResults.retenciones)} />
+            {!isFI && <CalcRow label="Contador (2%)" value={formatMXN(calcResults.contador)} />}
+            <div className="border-t border-gray-700 pt-1.5 mt-1.5">
               <CalcRow label="Total Costos" value={formatMXN(calcResults.totalCostos)} bold />
-              <CalcRow
-                label="Utilidad"
-                value={formatMXN(calcResults.utilidad)}
-                bold
-                color={calcResults.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'}
-              />
-              <CalcRow
-                label="Margen %"
-                value={formatPct(calcResults.margen)}
-                bold
-                color={calcResults.margen >= 0 ? 'text-emerald-400' : 'text-red-400'}
-              />
+              <CalcRow label="Utilidad" value={formatMXN(calcResults.utilidad)} bold color={calcResults.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'} />
+              <CalcRow label="Margen %" value={calcResults.margen.toFixed(1) + '%'} bold color={calcResults.margen >= 0 ? 'text-emerald-400' : 'text-red-400'} />
             </div>
           </div>
         </div>
@@ -209,55 +387,57 @@ export default function Lives() {
           <h3 className="text-sm font-medium text-white">Detalle de Lives ({filtered.length})</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800/60">
                 {([
-                  ['fecha', 'Fecha'], ['host', 'Host'], ['duracion', 'Duración'],
-                  ['pedidos', 'Pedidos'], ['venta', 'Venta'], ['ads', 'Ads'],
-                  ['roas_live', 'ROAS'], ['mercancias', 'Mercancía'], ['costo_host', 'Costo Host'],
-                  ['utilidad', 'Utilidad'], ['margen', 'Margen %'],
+                  ['fecha', 'Fecha'], ['host', 'Host'], ['duracion', 'Dur.'],
+                  ['pedidos', 'Ped.'], ['venta', 'Venta'], ['ads', 'Ads'],
+                  ['roas_live', 'ROAS'], ['mercancias', 'Merc.'], ['guias_calc', 'Guías'],
+                  ['comision_calc', 'Com. TT'], ['ret_calc', 'Ret.'], ['iva_calc', 'IVA Ads'],
+                  ['costo_host', 'C. Host'], ['utilidad', 'Utilidad'], ['margen', 'Margen'],
                 ] as [string, string][]).map(([key, label]) => (
-                  <th
-                    key={key}
-                    onClick={() => toggleSort(key as SortKey)}
-                    className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-gray-500 font-medium cursor-pointer hover:text-gray-300 select-none"
+                  <th key={key} onClick={() => ['fecha', 'host', 'venta', 'roas_live', 'utilidad', 'margen'].includes(key) ? toggleSort(key as SortKey) : null}
+                    className="px-3 py-2.5 text-left text-[9px] uppercase tracking-wider text-gray-500 font-medium cursor-pointer hover:text-gray-300 select-none whitespace-nowrap"
                   >
-                    <span className="flex items-center gap-1">{label} <SortIcon col={key as SortKey} /></span>
+                    <span className="flex items-center gap-0.5">{label}
+                      {['fecha', 'host', 'venta', 'roas_live', 'utilidad', 'margen'].includes(key) && <SortIcon col={key as SortKey} />}
+                    </span>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((l) => {
-                const m = l.margen || 0;
-                const utilColor = m > 0.2 ? 'text-emerald-400' : m >= 0 ? 'text-yellow-400' : 'text-red-400';
+              {filtered.map(l => {
+                const v = l.venta || 0;
+                const a = l.ads || 0;
+                const ch = l.costo_host || 0;
+                const p = l.pedidos || 0;
+                const costs = computeLiveCosts(activeBrand, v, a, ch, p);
+                const utilColor = costs.margen > 20 ? 'text-emerald-400' : costs.margen >= 0 ? 'text-yellow-400' : 'text-red-400';
+
                 return (
                   <tr key={l.id} className="border-b border-gray-800/30 hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-3 text-gray-300">{l.fecha}</td>
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: HOST_COLORS[l.host || ''] || '#666' }}
-                        />
-                        <span className="text-white font-medium">{l.host || '—'}</span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">{l.duracion || '—'}</td>
-                    <td className="px-4 py-3 text-gray-300">{l.pedidos ?? 0}</td>
-                    <td className="px-4 py-3 text-white font-medium">{formatMXN(l.venta || 0)}</td>
-                    <td className="px-4 py-3 text-gray-300">{formatMXN(l.ads || 0)}</td>
-                    <td className="px-4 py-3 text-gray-300">{formatROAS(l.roas_live || 0)}</td>
-                    <td className="px-4 py-3 text-gray-300">{formatMXN(l.mercancias || 0)}</td>
-                    <td className="px-4 py-3 text-gray-300">{formatMXN(l.costo_host || 0)}</td>
-                    <td className={`px-4 py-3 font-medium ${utilColor}`}>{formatMXN(l.utilidad || 0)}</td>
-                    <td className={`px-4 py-3 font-medium ${utilColor}`}>{formatPct((l.margen || 0) * 100)}</td>
+                    <EditableTableCell id={l.id} field="fecha" value={l.fecha} />
+                    <EditableTableCell id={l.id} field="host" value={l.host} />
+                    <EditableTableCell id={l.id} field="duracion" value={l.duracion} />
+                    <EditableTableCell id={l.id} field="pedidos" value={l.pedidos} />
+                    <EditableTableCell id={l.id} field="venta" value={l.venta} format={formatMXN} className="text-white font-medium" />
+                    <EditableTableCell id={l.id} field="ads" value={l.ads} format={formatMXN} />
+                    <td className="px-3 py-2 text-gray-300">{formatROAS(costs.roas)}</td>
+                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.producto)}</td>
+                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.guias)}</td>
+                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.comisionTT)}</td>
+                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.retenciones)}</td>
+                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.ivaAds)}</td>
+                    <EditableTableCell id={l.id} field="costo_host" value={l.costo_host} format={formatMXN} />
+                    <td className={`px-3 py-2 font-medium ${utilColor}`}>{formatMXN(costs.utilidad)}</td>
+                    <td className={`px-3 py-2 font-medium ${utilColor}`}>{costs.margen.toFixed(1)}%</td>
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
+                <tr><td colSpan={15} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
               )}
             </tbody>
           </table>
@@ -290,23 +470,19 @@ function KpiCard({ label, value, icon, color }: { label: string; value: string; 
 function CalcInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1 block">{label}</label>
-      <input
-        type="number"
-        value={value || ''}
-        onChange={e => onChange(Number(e.target.value) || 0)}
-        className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition-colors"
-        placeholder="0"
-      />
+      <label className="text-[9px] uppercase tracking-wider text-gray-500 font-medium mb-0.5 block">{label}</label>
+      <input type="number" value={value || ''} onChange={e => onChange(Number(e.target.value) || 0)}
+        className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:border-orange-500 focus:outline-none transition-colors"
+        placeholder="0" />
     </div>
   );
 }
 
 function CalcRow({ label, value, bold, color }: { label: string; value: string; bold?: boolean; color?: string }) {
   return (
-    <div className="flex justify-between items-center">
-      <span className={`text-xs ${bold ? 'text-gray-300 font-medium' : 'text-gray-500'}`}>{label}</span>
-      <span className={`text-xs ${bold ? 'font-semibold' : ''} ${color || 'text-gray-300'}`}>{value}</span>
+    <div className="flex justify-between items-center py-0.5">
+      <span className={`text-[10px] ${bold ? 'text-gray-300 font-medium' : 'text-gray-500'}`}>{label}</span>
+      <span className={`text-[10px] ${bold ? 'font-semibold' : ''} ${color || 'text-gray-300'}`}>{value}</span>
     </div>
   );
 }
@@ -314,64 +490,35 @@ function CalcRow({ label, value, bold, color }: { label: string; value: string; 
 function AddLiveModal({ activeBrand, onClose, onSaved }: { activeBrand: string; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
-    hora: '',
-    duracion: '',
-    host: HOSTS[0],
-    pedidos: 0,
-    venta: 0,
-    ads: 0,
-    mercancias: 0,
-    costo_host: 0,
+    hora: '', duracion: '', host: HOSTS[0],
+    pedidos: 0, venta: 0, ads: 0, costo_host: 0,
   });
   const [saving, setSaving] = useState(false);
 
   const computed = useMemo(() => {
-    const { venta, ads, pedidos, mercancias, costo_host } = form;
-    const comision = venta * 0.08;
-    const retenciones = venta * 0.105;
-    const ivaAds = ads * 0.16;
-    const guias = activeBrand === 'feel_ink' ? pedidos * 126 : pedidos * 100;
-    const roas = ads > 0 ? venta / ads : 0;
-    const aov = pedidos > 0 ? venta / pedidos : 0;
-    const gastoTotal = ads + mercancias + costo_host + comision + retenciones + ivaAds + guias;
-    const utilidad = venta - gastoTotal;
-    const margen = venta > 0 ? utilidad / venta : 0;
-    return { roas, aov, utilidad, margen, gastoTotal, comision, retenciones, ivaAds, guias };
+    const { venta, ads, costo_host, pedidos } = form;
+    return computeLiveCosts(activeBrand, venta, ads, costo_host, pedidos);
   }, [form, activeBrand]);
 
   const handleSave = async () => {
-    if (!form.fecha || form.venta <= 0) {
-      toast.error('Fecha y Venta son requeridos');
-      return;
-    }
+    if (!form.fecha || form.venta <= 0) { toast.error('Fecha y Venta son requeridos'); return; }
     setSaving(true);
     const { error } = await supabase.from('lives_analysis').insert({
-      brand: activeBrand,
-      fecha: form.fecha,
-      hora: form.hora || null,
-      duracion: form.duracion || null,
-      host: form.host,
-      pedidos: form.pedidos,
-      venta: form.venta,
-      ads: form.ads,
-      mercancias: form.mercancias,
-      costo_host: form.costo_host,
-      roas_live: computed.roas,
-      aov: computed.aov,
-      utilidad: computed.utilidad,
-      margen: computed.margen,
-      gasto_total: computed.gastoTotal,
-      envio_comision_tt: computed.comision,
-      iva_ads: computed.ivaAds,
-      impuestos: computed.retenciones,
+      brand: activeBrand, fecha: form.fecha, hora: form.hora || null,
+      duracion: form.duracion || null, host: form.host, pedidos: form.pedidos,
+      venta: form.venta, ads: form.ads, mercancias: computed.producto,
+      costo_host: form.costo_host, roas_live: computed.roas, aov: computed.aov,
+      utilidad: computed.utilidad, margen: computed.margen / 100,
+      gasto_total: computed.totalCostos, envio_comision_tt: computed.comisionTT,
+      iva_ads: computed.ivaAds, impuestos: computed.retenciones,
     });
     setSaving(false);
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.success('Live agregado');
-    onSaved();
+    toast.success('Live agregado'); onSaved();
   };
 
   const set = (key: string, value: unknown) => setForm(f => ({ ...f, [key]: value }));
+  const isFI = activeBrand === 'feel_ink';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -387,30 +534,40 @@ function AddLiveModal({ activeBrand, onClose, onSaved }: { activeBrand: string; 
           <ModalField label="Duración" type="text" value={form.duracion} onChange={v => set('duracion', v)} placeholder="1:30" />
           <div>
             <label className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1 block">Host</label>
-            <select value={form.host} onChange={e => set('host', e.target.value)} className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none">
+            <select value={form.host} onChange={e => set('host', e.target.value)}
+              className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none">
               {HOSTS.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>
           <ModalField label="Pedidos" type="number" value={form.pedidos} onChange={v => set('pedidos', Number(v) || 0)} />
           <ModalField label="Venta Total" type="number" value={form.venta} onChange={v => set('venta', Number(v) || 0)} />
           <ModalField label="Gasto Ads" type="number" value={form.ads} onChange={v => set('ads', Number(v) || 0)} />
-          <ModalField label="Mercancía" type="number" value={form.mercancias} onChange={v => set('mercancias', Number(v) || 0)} />
           <ModalField label="Costo Host" type="number" value={form.costo_host} onChange={v => set('costo_host', Number(v) || 0)} />
         </div>
 
         {/* Computed preview */}
         <div className="bg-[#0a0a0a] rounded-lg p-3 space-y-1 border border-gray-800">
-          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Valores Calculados</p>
-          <div className="flex justify-between text-xs"><span className="text-gray-500">ROAS</span><span className="text-gray-300">{formatROAS(computed.roas)}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-gray-500">Utilidad</span><span className={computed.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatMXN(computed.utilidad)}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-gray-500">Margen</span><span className={computed.margen >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatPct(computed.margen * 100)}</span></div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-2">Valores Calculados ({isFI ? 'Feel Ink' : 'Skinglow'})</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+            <div className="flex justify-between"><span className="text-gray-500">ROAS</span><span className="text-gray-300">{formatROAS(computed.roas)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">AOV</span><span className="text-gray-300">{computed.aov > 0 ? formatMXN(computed.aov) : '—'}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Producto</span><span className="text-gray-300">{formatMXN(computed.producto)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Guías</span><span className="text-gray-300">{formatMXN(computed.guias)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Com. TT</span><span className="text-gray-300">{formatMXN(computed.comisionTT)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Ret.</span><span className="text-gray-300">{formatMXN(computed.retenciones)}</span></div>
+          </div>
+          <div className="border-t border-gray-800 pt-1 mt-1 flex justify-between text-xs">
+            <span className="text-gray-500">Utilidad</span>
+            <span className={computed.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatMXN(computed.utilidad)}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-500">Margen</span>
+            <span className={computed.margen >= 0 ? 'text-emerald-400' : 'text-red-400'}>{computed.margen.toFixed(1)}%</span>
+          </div>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-        >
+        <button onClick={handleSave} disabled={saving}
+          className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
           {saving ? 'Guardando...' : 'Guardar Live'}
         </button>
       </div>
@@ -422,13 +579,8 @@ function ModalField({ label, type, value, onChange, placeholder }: { label: stri
   return (
     <div>
       <label className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1 block">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition-colors"
-      />
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none transition-colors" />
     </div>
   );
 }
