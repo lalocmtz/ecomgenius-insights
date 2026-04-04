@@ -1,88 +1,178 @@
 import { useAppStore } from '@/store/useAppStore';
-import { useLives, useKPIs, useOKRs, useAgentConversations, useDailyMetrics } from '@/hooks/useSupabaseData';
-import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
-import { TrendingUp, Clock, AlertTriangle, CheckCircle, Sparkles, Video as VideoIcon, ShoppingCart, CreditCard } from 'lucide-react';
+import { useDashboardData, KPI_CANAL_MAP, calcVentasNetas, calcCostos, calcGastoAds, type MetricRow } from '@/hooks/useDashboardData';
+import { formatMXN, formatPct } from '@/lib/formatters';
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, Flame, ArrowDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
-const CHART_COLORS = ['hsl(14,100%,57%)', 'hsl(217,91%,60%)', 'hsl(142,71%,45%)', 'hsl(0,0%,50%)'];
+const CHART_COLORS = ['hsl(14,100%,57%)', 'hsl(217,91%,60%)', 'hsl(142,71%,45%)', 'hsl(45,93%,47%)', 'hsl(280,67%,55%)', 'hsl(0,0%,50%)'];
+
+function margenColor(margen: number) {
+  if (margen >= 20) return 'text-status-good';
+  if (margen >= 14) return 'text-status-warning';
+  return 'text-status-critical';
+}
+
+function statusDot(status: string | null) {
+  const color = status === 'bien' ? 'bg-[#22c55e]' : status === 'alerta' ? 'bg-[#eab308]' : status === 'critico' ? 'bg-[#ef4444]' : 'bg-muted-foreground';
+  return <div className={`w-2 h-2 rounded-full ${color}`} />;
+}
 
 export default function Dashboard() {
   const { activeBrand } = useAppStore();
   const isFI = activeBrand === 'feel_ink';
-  const { data: lives } = useLives();
-  const { data: kpis } = useKPIs();
-  const { data: okrs } = useOKRs();
-  const { data: conversations } = useAgentConversations();
-  const { data: metrics } = useDailyMetrics();
+  const { metrics, kpis, isLoading, periodo } = useDashboardData(activeBrand);
 
-  const directorAnalysis = conversations?.find(c => c.agent_id === 'director')?.last_analysis;
+  // ─── Totals ───
+  const ventasNetas = calcVentasNetas(metrics);
+  const costos = calcCostos(metrics);
+  const gastoAds = calcGastoAds(metrics);
+  const utilidad = ventasNetas - costos;
+  const margen = ventasNetas ? (utilidad / ventasNetas) * 100 : 0;
 
-  // Compute profit panel from lives data
-  const profitData = useMemo(() => {
-    if (!lives?.length) return null;
-    const totalVentas = lives.reduce((s, l) => s + (l.venta || 0), 0);
-    const totalAds = lives.reduce((s, l) => s + (l.ads || 0), 0);
-    const totalMercancias = lives.reduce((s, l) => s + (l.mercancias || 0), 0);
-    const totalHost = lives.reduce((s, l) => s + (l.costo_host || 0), 0);
-    // Formula: COGS12% + guías6% + comisiónTTS8% + IVACPA4% + retenciones9.03% + ads + host
-    const totalCostsCalc = totalVentas * 0.12 + totalVentas * 0.06 + totalVentas * 0.08 + totalAds * 0.04 + totalVentas * 0.0903 + totalAds + totalHost;
-    const profit = totalVentas - totalCostsCalc;
-    return { ventas: totalVentas, costos: totalCostsCalc, ads: totalAds, profit, margen: totalVentas ? profit / totalVentas : 0 };
-  }, [lives]);
+  // ─── Section 2: Objectives Table ───
+  const objetivos = useMemo(() => {
+    return kpis
+      .filter(k => k.kpi_slug in KPI_CANAL_MAP)
+      .map(kpi => {
+        const canal = KPI_CANAL_MAP[kpi.kpi_slug];
+        const canalMetrics = metrics.filter(m => m.canal === canal);
+        const actualMTD = canalMetrics.reduce((s, m) => s + m.ventas_brutas, 0);
+        const target = kpi.valor_target || 0;
+        const avance = target ? (actualMTD / target) * 100 : 0;
 
-  // Compute sales chart from lives (reverse chronological)
-  const salesChartData = useMemo(() => {
-    if (!lives?.length) return [];
-    return [...lives].reverse().map(l => {
-      const ventas = l.venta || 0;
-      const ads = l.ads || 0;
-      const costos = ventas * 0.3903 + ads * 1.04 + (l.costo_host || 0);
-      return {
-        date: l.fecha?.slice(5) || '',
-        ventas,
-        profit: ventas - costos,
-      };
+        // Trend: last 7 vs prev 7
+        const sorted = [...canalMetrics].sort((a, b) => a.date.localeCompare(b.date));
+        const last7 = sorted.slice(-7).reduce((s, m) => s + m.ventas_brutas, 0);
+        const prev7 = sorted.slice(-14, -7).reduce((s, m) => s + m.ventas_brutas, 0);
+        const trendPct = prev7 ? ((last7 - prev7) / prev7) * 100 : 0;
+        const trend: 'up' | 'down' | 'stable' = trendPct > 5 ? 'up' : trendPct < -5 ? 'down' : 'stable';
+
+        return { canal, kpiName: kpi.kpi_name, target, actualMTD, avance, status: kpi.status, trend };
+      });
+  }, [kpis, metrics]);
+
+  const totalTarget = objetivos.reduce((s, o) => s + o.target, 0);
+  const totalActual = objetivos.reduce((s, o) => s + o.actualMTD, 0);
+  const totalAvance = totalTarget ? (totalActual / totalTarget) * 100 : 0;
+
+  const semaforos = useMemo(() => {
+    const counts = { bien: 0, alerta: 0, critico: 0 };
+    objetivos.forEach(o => { if (o.status && o.status in counts) counts[o.status as keyof typeof counts]++; });
+    return counts;
+  }, [objetivos]);
+
+  // ─── Section 3: Charts ───
+  const [chartTab, setChartTab] = useState<'7D' | '30D' | 'MTD'>('MTD');
+
+  const chartData = useMemo(() => {
+    const byDate: Record<string, { ventas: number; utilidad: number }> = {};
+    metrics.forEach(m => {
+      if (!byDate[m.date]) byDate[m.date] = { ventas: 0, utilidad: 0 };
+      const vn = (m.ventas_brutas || 0) - (m.descuentos || 0) - (m.devoluciones || 0);
+      const cost = (m.cogs || 0) + (m.guias || 0) + (m.comision_tts || 0) + (m.iva_ads || 0) + (m.retenciones || 0) + (m.anuncios || 0) + (m.costo_host || 0) + (m.nomina || 0) + (m.gastos_fijos || 0);
+      byDate[m.date].ventas += vn;
+      byDate[m.date].utilidad += vn - cost;
     });
-  }, [lives]);
+    let entries = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({
+      date: date.slice(5),
+      ventas: Math.round(v.ventas),
+      utilidad: Math.round(v.utilidad),
+    }));
+    if (chartTab === '7D') entries = entries.slice(-7);
+    else if (chartTab === '30D') entries = entries.slice(-30);
+    return entries;
+  }, [metrics, chartTab]);
 
-  // Channel distribution from metrics
-  const channelDistribution = useMemo(() => {
-    if (!metrics?.length) {
-      return [
-        { name: 'TikTok Shop', value: 42, amount: 52080 },
-        { name: 'Meta Ads', value: 28, amount: 34720 },
-        { name: 'Shopify Org.', value: 15, amount: 18600 },
-        { name: 'Mayoreo', value: 15, amount: 18600 },
-      ];
-    }
+  const channelMix = useMemo(() => {
     const byCanal: Record<string, number> = {};
-    metrics.forEach(m => { byCanal[m.canal] = (byCanal[m.canal] || 0) + (m.ventas_brutas || 0); });
-    const total = Object.values(byCanal).reduce((a, b) => a + b, 0) || 1;
-    return Object.entries(byCanal).map(([name, amount]) => ({
+    metrics.forEach(m => { byCanal[m.canal] = (byCanal[m.canal] || 0) + m.ventas_brutas; });
+    const sorted = Object.entries(byCanal).sort(([, a], [, b]) => b - a);
+    const total = sorted.reduce((s, [, v]) => s + v, 0) || 1;
+    return sorted.slice(0, 5).map(([name, amount]) => ({
       name,
       value: Math.round((amount / total) * 100),
       amount: Math.round(amount),
     }));
   }, [metrics]);
 
-  const totalChannel = channelDistribution.reduce((s, c) => s + c.amount, 0);
+  const totalChannelMix = channelMix.reduce((s, c) => s + c.amount, 0);
 
-  // OKR data
-  const okrItems = useMemo(() => {
-    if (!okrs?.length) return [];
-    const okr = okrs[0];
-    const items = (okr.kr_items as any[]) || [];
-    return items.map((kr: any) => ({
-      name: kr.name,
-      current: kr.actual,
-      target: kr.meta,
-      unit: kr.unidad,
-    }));
-  }, [okrs]);
+  // ─── Section 4: Top today + Alerts ───
+  const lastDate = metrics.length ? metrics[metrics.length - 1]?.date : null;
+  const todayMetrics = lastDate ? metrics.filter(m => m.date === lastDate) : [];
 
-  // KPI summaries
-  const getKpi = (slug: string) => kpis?.find(k => k.kpi_slug === slug);
+  const topCanales = useMemo(() => {
+    const byCanal: Record<string, { ventas: number; pedidos: number }> = {};
+    todayMetrics.forEach(m => {
+      if (!byCanal[m.canal]) byCanal[m.canal] = { ventas: 0, pedidos: 0 };
+      byCanal[m.canal].ventas += m.ventas_brutas;
+      byCanal[m.canal].pedidos += m.pedidos;
+    });
+    // Avg daily per canal
+    const avgByCanal: Record<string, number> = {};
+    metrics.forEach(m => {
+      avgByCanal[m.canal] = (avgByCanal[m.canal] || 0) + m.ventas_brutas;
+    });
+    const days = new Set(metrics.map(m => m.date)).size || 1;
+    Object.keys(avgByCanal).forEach(k => { avgByCanal[k] /= days; });
+
+    return Object.entries(byCanal)
+      .sort(([, a], [, b]) => b.ventas - a.ventas)
+      .slice(0, 3)
+      .map(([canal, v]) => ({
+        canal,
+        ventas: v.ventas,
+        pedidos: v.pedidos,
+        aboveAvg: v.ventas > (avgByCanal[canal] || 0),
+      }));
+  }, [todayMetrics, metrics]);
+
+  const alertas = useMemo(() => {
+    const list: { icon: React.ReactNode; text: string; type: 'warning' | 'danger' | 'success' }[] = [];
+    if (margen < 14 && metrics.length) list.push({ icon: <AlertTriangle size={14} />, text: '⚠️ Margen crítico', type: 'danger' });
+
+    // Check channels falling 3+ days
+    const byCanal: Record<string, number[]> = {};
+    const sortedAll = [...metrics].sort((a, b) => a.date.localeCompare(b.date));
+    sortedAll.forEach(m => {
+      if (!byCanal[m.canal]) byCanal[m.canal] = [];
+      const idx = byCanal[m.canal].length;
+      byCanal[m.canal][idx] = m.ventas_brutas;
+    });
+
+    // Canales with ventas > 2x avg
+    const days = new Set(metrics.map(m => m.date)).size || 1;
+    Object.entries(byCanal).forEach(([canal, vals]) => {
+      const avg = vals.reduce((a, b) => a + b, 0) / days;
+      const lastVal = vals[vals.length - 1] || 0;
+      if (lastVal > avg * 2 && list.length < 5) list.push({ icon: <Flame size={14} />, text: `🔥 ${canal} excepcional`, type: 'success' });
+      // Check falling 3+ consecutive
+      if (vals.length >= 3) {
+        const tail = vals.slice(-3);
+        if (tail[2] < tail[1] && tail[1] < tail[0] && list.length < 5) {
+          list.push({ icon: <ArrowDown size={14} />, text: `↓ ${canal} cayendo`, type: 'warning' });
+        }
+      }
+    });
+
+    return list.slice(0, 5);
+  }, [metrics, margen]);
+
+  const brandLabel = isFI ? 'Feel Ink' : 'Skinglow';
+  const accentStroke = isFI ? 'hsl(14,100%,57%)' : 'hsl(160,76%,36%)';
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Intelligence Suite · Dashboard</p>
+          <h1 className="text-2xl font-medium text-foreground">Dashboard</h1>
+        </div>
+        <div className="text-sm text-muted-foreground">Cargando datos...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -91,189 +181,210 @@ export default function Dashboard() {
         <h1 className="text-2xl font-medium text-foreground">Dashboard</h1>
       </div>
 
-      {/* Profit Panel */}
-      {profitData && (
-        <div className="bg-card rounded-lg border border-border p-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Ventas Brutas</span>
-              <div className="text-xl font-medium text-foreground">{formatMXN(profitData.ventas)}</div>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Costos Totales</span>
-              <div className="text-xl font-medium text-foreground">{formatMXN(profitData.costos)}</div>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Gasto Ads</span>
-              <div className="text-xl font-medium text-foreground">{formatMXN(profitData.ads)}</div>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Profit Estimado</span>
-              <div className="text-xl font-medium text-primary">{formatMXN(profitData.profit)}</div>
-              <span className="text-xs text-muted-foreground">{formatPct(profitData.margen * 100)} margen</span>
-            </div>
+      {/* ─── SECTION 1: Hero Utilidad MTD ─── */}
+      <div className="bg-card rounded-lg border border-border p-5">
+        <div className="mb-4">
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            UTILIDAD DEL MES · {periodo.replace('-', ' ')} · {brandLabel}
+          </span>
+          <div className={`text-3xl font-medium mt-1 ${margenColor(margen)}`}>{formatMXN(utilidad)}</div>
+          <span className={`text-xs ${margenColor(margen)}`}>margen {formatPct(margen)}</span>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <MiniStat label="Ventas Brutas" value={formatMXN(ventasNetas)} />
+          <MiniStat label="Gasto Ads" value={formatMXN(gastoAds)} />
+          <MiniStat label="Costos Op" value={formatMXN(costos)} />
+          <MiniStat label="Utilidad" value={formatMXN(utilidad)} accent />
+        </div>
+        <div className="mt-4">
+          <div className="flex justify-between text-[9px] text-muted-foreground mb-1">
+            <span>Meta margen: 20%</span>
+            <span>{formatPct(margen)}</span>
           </div>
-          {/* Break-even bar */}
-          <div className="mt-3 h-2 bg-secondary rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (profitData.ventas / (profitData.costos || 1)) * 50)}%` }} />
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[9px] text-muted-foreground">Break-even</span>
-            <span className="text-[9px] text-primary">{profitData.profit > 0 ? '✓ Por encima' : '⚠ Por debajo'}</span>
+          <div className="h-2 bg-secondary rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (margen / 20) * 100)}%` }} />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {isFI ? (
-          <>
-            <KpiCard label="Ventas Totales" value={formatMXN(getKpi('ventas_totales')?.valor_actual || 0)} sub={`Meta: ${formatMXN(getKpi('ventas_totales')?.valor_target || 0)}`} icon={<TrendingUp size={16} />} status={getKpi('ventas_totales')?.status as any} />
-            <KpiCard label="ROAS Promedio" value={formatROAS(getKpi('roas_avg')?.valor_actual || 0)} sub="Promedio hist." icon={<Clock size={16} />} status={getKpi('roas_avg')?.status as any} />
-            <KpiCard label="% Utilidad" value={formatPct(getKpi('pct_utilidad')?.valor_actual || 0)} sub={`Meta: ${formatPct(getKpi('pct_utilidad')?.valor_target || 0)}`} icon={<AlertTriangle size={16} />} status={getKpi('pct_utilidad')?.status as any} />
-            <KpiCard label="Ticket Promedio" value={formatMXN(getKpi('ticket_promedio')?.valor_actual || 0)} sub={`Meta: ${formatMXN(getKpi('ticket_promedio')?.valor_target || 0)}`} icon={<CheckCircle size={16} />} status={getKpi('ticket_promedio')?.status as any} />
-          </>
+      {/* ─── SECTION 2: Tabla Objetivos por Canal ─── */}
+      <div className="bg-card rounded-lg border border-border p-5">
+        <h3 className="text-sm font-medium text-foreground mb-4">Objetivos por Canal · {periodo}</h3>
+        {objetivos.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Sin datos de KPIs para este período.</p>
         ) : (
           <>
-            <KpiCard label="Ventas Totales" value={formatMXN(getKpi('ventas_totales')?.valor_actual || 0)} sub={`Meta: ${formatMXN(getKpi('ventas_totales')?.valor_target || 0)}`} icon={<TrendingUp size={16} />} status={getKpi('ventas_totales')?.status as any} />
-            <KpiCard label="% Descuento" value={formatPct(getKpi('pct_descuento')?.valor_actual || 0)} sub={`Meta <${formatPct(getKpi('pct_descuento')?.valor_target || 0)}`} icon={<AlertTriangle size={16} />} status={getKpi('pct_descuento')?.status as any} />
-            <KpiCard label="% Retención" value={formatPct(getKpi('pct_retencion')?.valor_actual || 0)} sub={`Meta >${formatPct(getKpi('pct_retencion')?.valor_target || 0)}`} icon={<AlertTriangle size={16} />} status={getKpi('pct_retencion')?.status as any} />
-            <KpiCard label="Break-even Daily" value={formatMXN(getKpi('break_even_daily')?.valor_actual || 0)} sub="Superado" icon={<CheckCircle size={16} />} status={getKpi('break_even_daily')?.status as any} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                    <th className="text-left py-2 pr-4 font-medium">Canal</th>
+                    <th className="text-right py-2 px-3 font-medium">Meta Mes</th>
+                    <th className="text-right py-2 px-3 font-medium">Actual MTD</th>
+                    <th className="text-right py-2 px-3 font-medium">% Avance</th>
+                    <th className="text-center py-2 px-3 font-medium">Estado</th>
+                    <th className="text-center py-2 px-3 font-medium">Tend.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {objetivos.map((o, i) => (
+                    <tr key={o.canal} className={i % 2 === 1 ? 'bg-secondary/30' : ''}>
+                      <td className="py-2 pr-4 font-medium text-foreground">{o.canal}</td>
+                      <td className="py-2 px-3 text-right text-muted-foreground">{formatMXN(o.target)}</td>
+                      <td className="py-2 px-3 text-right text-foreground">{formatMXN(o.actualMTD)}</td>
+                      <td className="py-2 px-3 text-right text-foreground">{formatPct(o.avance)}</td>
+                      <td className="py-2 px-3 flex justify-center">{statusDot(o.status)}</td>
+                      <td className="py-2 px-3 text-center">
+                        {o.trend === 'up' ? <TrendingUp size={14} className="inline text-status-good" /> :
+                         o.trend === 'down' ? <TrendingDown size={14} className="inline text-status-critical" /> :
+                         <Minus size={14} className="inline text-muted-foreground" />}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-border font-medium">
+                    <td className="py-2 pr-4 text-foreground">TOTAL</td>
+                    <td className="py-2 px-3 text-right text-muted-foreground">{formatMXN(totalTarget)}</td>
+                    <td className="py-2 px-3 text-right text-foreground">{formatMXN(totalActual)}</td>
+                    <td className="py-2 px-3 text-right text-foreground">{formatPct(totalAvance)}</td>
+                    <td className="py-2 px-3" />
+                    <td className="py-2 px-3" />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
+              <span>🟢 {semaforos.bien}</span>
+              <span>🟡 {semaforos.alerta}</span>
+              <span>🔴 {semaforos.critico}</span>
+            </div>
           </>
         )}
       </div>
 
-      {/* Charts */}
+      {/* ─── SECTION 3: Charts ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3 bg-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-medium text-foreground mb-1">Ventas vs Profit</h3>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Por sesión de live</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={salesChartData}>
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} width={50} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: 'hsl(0,0%,10%)', border: '1px solid hsl(0,0%,18%)', borderRadius: 8, fontSize: 12 }} />
-              <Line type="monotone" dataKey="ventas" stroke="hsl(14,100%,57%)" strokeWidth={2} dot={false} name="Ventas" />
-              <Line type="monotone" dataKey="profit" stroke="hsl(142,71%,45%)" strokeWidth={2} dot={false} name="Profit" />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-medium text-foreground">Ventas vs Utilidad</h3>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Por día</p>
+            </div>
+            <div className="flex gap-1">
+              {(['7D', '30D', 'MTD'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setChartTab(tab)}
+                  className={`px-3 py-1 text-[10px] font-medium rounded-md transition-colors ${
+                    chartTab === tab ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+          {chartData.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-12 text-center">Sin datos</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={chartData}>
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(0,0%,50%)' }} axisLine={false} tickLine={false} width={55} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ background: 'hsl(0,0%,10%)', border: '1px solid hsl(0,0%,18%)', borderRadius: 8, fontSize: 12 }} />
+                <Line type="monotone" dataKey="ventas" stroke={accentStroke} strokeWidth={2} dot={false} name="Ventas Netas" />
+                <Line type="monotone" dataKey="utilidad" stroke="hsl(142,71%,45%)" strokeWidth={2} dot={false} name="Utilidad" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="lg:col-span-2 bg-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-medium text-foreground">Distribución por canal</h3>
-          <div className="flex items-center justify-center mt-2">
-            <div className="relative">
-              <ResponsiveContainer width={180} height={180}>
-                <PieChart>
-                  <Pie data={channelDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={78} dataKey="value" stroke="none">
-                    {channelDistribution.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-medium text-foreground">{formatMXN(totalChannel)}</span>
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Total</span>
+          <h3 className="text-sm font-medium text-foreground">Mix por Canal</h3>
+          {channelMix.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-12 text-center">Sin datos</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-center mt-2">
+                <div className="relative">
+                  <ResponsiveContainer width={180} height={180}>
+                    <PieChart>
+                      <Pie data={channelMix} cx="50%" cy="50%" innerRadius={55} outerRadius={78} dataKey="value" stroke="none">
+                        {channelMix.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-xl font-medium text-foreground">{formatMXN(totalChannelMix)}</span>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Total</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {channelDistribution.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                {c.name} ({c.value}%)
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                {channelMix.map((c, i) => (
+                  <div key={c.name} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    {c.name} ({c.value}%)
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Agent Director Panel */}
-      <div className="bg-card rounded-lg border border-primary/30 p-6">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-            <Sparkles size={16} className="text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-medium text-foreground">Análisis del Director — {isFI ? 'Feel Ink' : 'Skinglow'} · Período actual</h3>
-            <span className="text-[9px] uppercase tracking-[0.15em] text-primary font-medium">Recomendación prioritaria</span>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-          {directorAnalysis || 'Conecta el agente IA Director para obtener análisis automatizado de tu negocio. Ve a Agentes IA → Director → Chat para iniciar.'}
-        </p>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-lg" onClick={() => window.location.href = '/agentes'}>
-            Ver análisis completo →
-          </button>
-        </div>
-      </div>
-
-      {/* OKRs + Activity */}
+      {/* ─── SECTION 4: Top Canales Hoy + Alertas ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">OKRs del período</h3>
-          <div className="space-y-4">
-            {okrItems.map((okr) => (
-              <div key={okr.name}>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="uppercase tracking-wider text-muted-foreground font-medium">{okr.name}</span>
-                  <span className="text-foreground">
-                    {okr.unit === 'x' ? `${okr.current}x / ${okr.target}x` :
-                     okr.unit === '%' ? `${okr.current}% / ${okr.target}%` :
-                     `${formatMXN(okr.current)} / ${formatMXN(okr.target)}`}
-                    {' '}({Math.round((okr.current / okr.target) * 100)}%)
-                  </span>
+          <h3 className="text-sm font-medium text-foreground mb-4">Top Canales · {lastDate?.slice(5) || 'Hoy'}</h3>
+          {topCanales.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sin datos de hoy.</p>
+          ) : (
+            <div className="space-y-3">
+              {topCanales.map(tc => (
+                <div key={tc.canal} className="flex items-center justify-between bg-secondary/30 rounded-lg p-3">
+                  <div>
+                    <span className="text-sm font-medium text-foreground">{tc.canal}</span>
+                    <p className="text-xs text-muted-foreground">{tc.pedidos} pedidos</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-medium text-foreground">{formatMXN(tc.ventas)}</span>
+                    {tc.aboveAvg && <span className="ml-2 text-[9px] uppercase tracking-wider text-status-good font-medium">▲ Arriba promedio</span>}
+                  </div>
                 </div>
-                <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(100, (okr.current / okr.target) * 100)}%` }} />
-                </div>
-              </div>
-            ))}
-            {!okrItems.length && <p className="text-xs text-muted-foreground">Sin OKRs para el período actual.</p>}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-card rounded-lg border border-border p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">Actividad reciente</h3>
-          <div className="space-y-4">
-            {(lives || []).slice(0, 4).map((l, i) => (
-              <div key={l.id} className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <VideoIcon size={14} className="text-primary" />
+          <h3 className="text-sm font-medium text-foreground mb-4">Alertas</h3>
+          {alertas.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Sin alertas activas. Todo operando normal.</p>
+          ) : (
+            <div className="space-y-3">
+              {alertas.map((a, i) => (
+                <div key={i} className={`flex items-center gap-3 rounded-lg p-3 ${
+                  a.type === 'danger' ? 'bg-status-critical/10' : a.type === 'success' ? 'bg-status-good/10' : 'bg-status-warning/10'
+                }`}>
+                  <span className={a.type === 'danger' ? 'text-status-critical' : a.type === 'success' ? 'text-status-good' : 'text-status-warning'}>
+                    {a.icon}
+                  </span>
+                  <span className="text-sm text-foreground">{a.text}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Live {l.host || 'Sin host'}</span>
-                    <span className="text-[10px] text-muted-foreground">{l.fecha}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {formatMXN(l.venta || 0)} venta · ROAS {formatROAS(l.roas_live || 0)} · {l.pedidos} pedidos
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function KpiCard({ label, value, sub, icon, status }: {
-  label: string; value: string; sub: string; icon: React.ReactNode;
-  status?: 'bien' | 'alerta' | 'critico' | string | null;
-}) {
-  const statusColor = status === 'bien' ? 'text-status-good' : status === 'alerta' ? 'text-status-warning' : status === 'critico' ? 'text-status-critical' : 'text-muted-foreground';
+function MiniStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="bg-card rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
-        <span className={statusColor}>{icon}</span>
-      </div>
-      <div className="text-2xl font-medium text-foreground">{value}</div>
-      <p className={`text-xs mt-1 ${statusColor}`}>{sub}</p>
+    <div>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className={`text-xl font-medium ${accent ? 'text-primary' : 'text-foreground'}`}>{value}</div>
     </div>
   );
 }
