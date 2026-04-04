@@ -3,7 +3,7 @@ import { useDashboardData, KPI_CANAL_MAP, calcVentasNetas, calcCostos, calcGasto
 import { useDailyMetrics, useUpdateCell } from '@/hooks/useSupabaseData';
 import { EditableCell } from '@/components/EditableCell';
 import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
-import { Plus, Download, DollarSign, ShoppingCart, Truck, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Download, DollarSign, ShoppingCart, TrendingUp, ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown, Crosshair } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, AreaChart, Area,
 } from 'recharts';
