@@ -1,138 +1,43 @@
 
 
-# Plan: Rediseño EcomGenius — 6 Pasos
+# Plan: Rediseño Dashboard con daily_metrics
 
-## Prerequisito: Habilitar Lovable Cloud
+## Resumen
+Crear un hook `useDashboardData` que lea `daily_metrics` y `kpis_monthly` del mes actual, y reescribir `Dashboard.tsx` con 4 secciones nuevas. Insertar datos seed de KPIs ABR-2025 y daily_metrics de ejemplo (1-3 abril).
 
-El proyecto **no tiene Supabase conectado** actualmente. Antes de implementar cualquier paso, necesito habilitar Lovable Cloud, que creará automáticamente la instancia de Supabase con base de datos, auth y edge functions.
+## Archivos a crear/modificar
 
-**Acción requerida del usuario**: Aprobar la habilitación de Lovable Cloud cuando aparezca el prompt.
+### 1. Crear `src/hooks/useDashboardData.ts`
+- 2 queries React Query (staleTime 30s):
+  - `daily_metrics` filtrado por `activeBrand` + mes actual (día 1 → hoy)
+  - `kpis_monthly` filtrado por `activeBrand` + periodo actual (ej: "ABR-2026")
+- Calcula internamente: ventasNetas, costos (suma de todos los campos de costo), utilidad, margen
+- Retorna `{ metrics, kpis, isLoading }`
+- El periodo se genera dinámicamente con mes en español abreviado uppercase + año
 
----
+### 2. Reescribir `src/pages/Dashboard.tsx`
+Reemplazar todo el contenido actual. 4 secciones:
 
-## Paso 1: Supabase + Datos Reales
+**Sección 1 — Hero Utilidad MTD**: Card full-width con utilidad total del mes, color por margen (verde >=20, amarillo >=14, rojo <14), grid 4 cols (Ventas Brutas, Gasto Ads, Costos Op, Utilidad), barra progreso meta 20%.
 
-### Schema (8 tablas vía migraciones)
-- `daily_metrics` — métricas diarias por marca/canal con todos los campos de costos
-- `lives_analysis` — análisis individual de lives con campos completos incluyendo `notas`
-- `creativos` — nueva tabla para tracking de creativos con `tags text[]`
-- `organico_posts` — posts orgánicos con métricas sociales y `es_viral`
-- `kpis_monthly` — KPIs con unique constraint `(brand, periodo, kpi_slug)`
-- `okrs` — objetivos con `kr_items jsonb`
-- `margin_scenarios` — escenarios del simulador
-- `agent_conversations` — historial de agentes IA
+**Sección 2 — Tabla Objetivos por Canal**: Lee kpis con slugs `ventas_meta`, `ventas_tiktok_ads`, etc. Mapea cada slug a un canal en daily_metrics para calcular Actual MTD. Columnas: Canal, Meta Mes, Actual MTD, % Avance, Semáforo (w-2 h-2 rounded-full), Tendencia (↑↓→). Fila TOTAL. Resumen semáforos.
 
-Todas con: uuid PK, `created_at`/`updated_at`, RLS habilitado (policy authenticated read/write).
+**Sección 3 — Gráficas (lg:grid-cols-5)**: LineChart ventas vs utilidad por día con tabs 7D/30D/MTD. PieChart donut mix por canal con top 5, total al centro.
 
-### Datos seed (vía insert tool)
-- 8 lives de Feel Ink (marzo 2025)
-- KPIs Feel Ink MAR-2025 (5 KPIs) + Skinglow MAR-2025 (4 KPIs)
-- 3 creativos (FI-V001, FI-V002, SG-V001)
+**Sección 4 — Top Canales Hoy + Alertas (lg:grid-cols-2)**: 3 mini cards de canales con más ventas del último día. Lista de hasta 5 alertas automáticas (margen crítico, canales cayendo, canales excepcionales).
 
-### Frontend
-- Eliminar `src/data/mockData.ts`
-- Crear `src/integrations/supabase/client.ts` con el cliente Supabase
-- Crear hooks con react-query: `useLives()`, `useKPIs()`, `useCreativos()`, `useDailyMetrics()`, etc.
-- Actualizar Dashboard, Lives, Finanzas, KPIs, AgentesIA para usar los hooks en vez de mockData
+### 3. Migración SQL — Seed kpis_monthly ABR-2025
+Insertar vía migration tool:
+- Feel Ink: ventas_meta $450K, ventas_tiktok_ads $120K, ventas_gmv $250K, ventas_lives $160K, ventas_ml $100K, ventas_google $60K, ventas_email $20K, margen 20%
+- Skinglow: ventas_meta $600K, ventas_gmv $120K, ventas_lives 20, ventas_ml $80K, ventas_google $60K, ventas_email $30K, margen 20%
+- Con `ON CONFLICT DO NOTHING` para idempotencia (unique on brand+periodo+kpi_slug)
 
----
+### 4. Insert daily_metrics — 3 días ejemplo abril
+Insertar vía insert tool 3 días (1-3 abril) para ambas marcas con 7 canales cada uno. Cantidades realistas proporcionales a los targets mensuales.
 
-## Paso 2: Edición en Tiempo Real
-
-- Componente `EditableCell`: click → input, Enter → save via Supabase `.update()`, toast confirmación, Escape cancela
-- Toggle `editMode` en Zustand store, botón en header [✏️ Editar] / [👁 Ver]
-- Supabase Realtime: suscripción a cambios en tablas principales para sync multi-usuario
-- **Selector de fechas global funcional**: dropdown con botones rápidos (Hoy, 7D, 30D, Este mes, Mes pasado, Q1, YTD, Personalizado con date-range picker). Actualiza `dateRange` en Zustand, todas las queries filtran por este rango.
-
----
-
-## Paso 3: Dashboard — Profit Estimado
-
-- Panel full-width encima de KPIs: 4 columnas (Ventas Brutas, Costos Totales, Gasto Ads, Profit Estimado con margen%)
-- Barra visual break-even + desglose por canal
-- Fórmula real de costos: COGS 12% + guías 6% + comisión TTS 8% + IVA CPA 4% + retenciones 9.03% + ads + host
-- Segunda línea verde de profit en la gráfica de ventas 30D (calculada con la fórmula)
-
----
-
-## Paso 4: 8 Páginas Faltantes
-
-| Página | Ruta | Descripción |
-|--------|------|-------------|
-| Ventas | `/ventas` | Tabla editable daily_metrics agrupada día/canal, barras apiladas, +Agregar día, Export CSV |
-| TikTok Shop | `/tiktok-shop` | KPIs GMV/pedidos/AOV, tabla canal=tiktok, gráfica GMV 30D con dots en días de live |
-| Shopify | `/shopify` | KPIs ventas/ticket/descuento%, tabla canal=shopify, panel alertas Skinglow |
-| Meta Ads | `/meta-ads` | KPIs spend/ROAS/CPA, gráfica ROAS diario + línea target 3.5x, grid creativos top |
-| Creativos | `/creativos` | Grid cards con ROAS coloreado, filtros, modal nuevo creativo, panel Creative Intelligence, fatigue badge |
-| Orgánico Social | `/organico` | KPIs, feed grid 3cols, badge viral, botón Convertir a Paid, heatmap horarios |
-| OKRs | `/okrs` | Tabla editable con semáforo, barras progreso, expandible a KR items, resumen |
-| Configuración | `/configuracion` | Usuarios, agentes toggle, API keys, export CSV |
-
-- Agregar `Palette` (Creativos) al sidebar
-- Registrar todas las rutas en App.tsx
-
----
-
-## Paso 5: Agentes IA con Claude API (via Lovable AI)
-
-- Edge Function `claude-agent`: recibe agentId, brand, messages, consulta datos frescos de Supabase, llama Lovable AI Gateway con system prompt específico por agente, guarda en `agent_conversations`
-- 7 agentes: Director, Financiero, Publicidad, Lives, Logística, Datos, Creativo (nuevo)
-- System prompts en español MX con contexto financiero real
-- Streaming SSE para respuestas en tiempo real
-- Conectar: Director → Dashboard panel, Financiero → KPIs Editorial Pulse, Creativo → Creativos Intelligence
-- Usar `LOVABLE_API_KEY` (ya disponible)
-
----
-
-## Paso 6: Automatización Diaria
-
-- Edge Function `claude-agent-daily`: ejecuta los 7 agentes para ambas marcas (skip lives para Skinglow)
-- Tabla `agent_daily_runs` para tracking de ejecuciones
-- Indicador en header: ● verde(<2h), amarillo(2-6h), rojo(>6h) basado en última ejecución
-- En página Agentes: "Última ejecución · Próxima: mañana 00:00"
-- CRON via pg_cron (migración SQL)
-
----
-
-## Detalles Técnicos
-
-### Estructura de archivos nuevos
-```text
-src/
-  integrations/supabase/
-    client.ts
-    types.ts
-  hooks/
-    useLives.ts
-    useKPIs.ts
-    useDailyMetrics.ts
-    useCreativos.ts
-    useOrganicoPosts.ts
-    useOKRs.ts
-    useAgents.ts
-    useEditMode.ts
-    useRealtimeSync.ts
-  components/
-    EditableCell.tsx
-    DateRangePicker.tsx
-    ProfitPanel.tsx
-    CreativoCard.tsx
-    OKRRow.tsx
-    HeatmapHorarios.tsx
-  pages/
-    Ventas.tsx
-    TikTokShop.tsx
-    ShopifyPage.tsx
-    MetaAds.tsx
-    Creativos.tsx
-    OrganicoSocial.tsx
-    OKRs.tsx
-    Configuracion.tsx
-supabase/
-  functions/claude-agent/index.ts
-  functions/claude-agent-daily/index.ts
-```
-
-### Diseño (sin cambios)
-Feel Ink: bg #0F0F0F, accent #FF5722. Skinglow: bg #F8F6F0, accent #1A8A72. Inter 400/500. Sin sombras. rounded-lg.
+## Notas técnicas
+- El mapeo kpi_slug → canal: `ventas_meta` → `Meta`, `ventas_tiktok_ads` → `TikTok Ads`, `ventas_gmv` → `GMV MAX`, `ventas_lives` → `Lives`, `ventas_ml` → `Mercado Libre`, `ventas_google` → `Google`, `ventas_email` → `Email`
+- Tendencia: compara sum(ventas_brutas) últimos 7 días vs 7 previos del mismo canal. >5% = ↑, <-5% = ↓, else →
+- No se modifica ningún otro archivo
+- Si no hay datos: muestra "$0" y "Sin datos"
 
