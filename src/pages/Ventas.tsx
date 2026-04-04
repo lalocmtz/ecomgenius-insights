@@ -202,7 +202,7 @@ export default function Ventas() {
           { label: 'Ventas Brutas', value: formatMXN(kpis.ventasBrutas), icon: DollarSign, spark: sparkVentas, color: accentColor },
           { label: 'Pedidos', value: kpis.pedidos.toLocaleString(), icon: ShoppingCart, spark: sparkPedidos, color: '#3b82f6' },
           { label: 'Ticket Promedio', value: formatMXN(kpis.aov), icon: TrendingUp, spark: [], color: '#8b5cf6' },
-          { label: 'Gasto Ads', value: formatMXN(kpis.gastoAds), icon: Target, spark: sparkAds, color: '#ef4444' },
+          { label: 'Gasto Ads', value: formatMXN(kpis.gastoAds), icon: Crosshair, spark: sparkAds, color: '#ef4444' },
           { label: 'ROAS Blended', value: formatROAS(kpis.roas), icon: TrendingUp, spark: [], color: '#22c55e' },
           { label: 'Profit', value: formatMXN(kpis.profit), icon: DollarSign, spark: sparkProfit, color: kpis.profit >= 0 ? '#22c55e' : '#ef4444' },
         ].map((kpi) => (
