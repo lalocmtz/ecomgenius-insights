@@ -404,36 +404,54 @@ export type Database = {
         }
         Relationships: []
       }
-      okrs: {
+      objetivos: {
         Row: {
+          actual_value: number | null
+          asana_gid: string | null
           brand: string
-          created_at: string | null
+          canal: string | null
+          created_at: string
           id: string
-          kr_items: Json | null
+          meta_value: number | null
           objetivo: string
           periodo: string
-          status: string | null
-          updated_at: string | null
+          responsable: string | null
+          semaforo: string | null
+          unidad: string | null
+          updated_at: string
+          weekly_feedback: Json | null
         }
         Insert: {
+          actual_value?: number | null
+          asana_gid?: string | null
           brand: string
-          created_at?: string | null
+          canal?: string | null
+          created_at?: string
           id?: string
-          kr_items?: Json | null
+          meta_value?: number | null
           objetivo: string
           periodo: string
-          status?: string | null
-          updated_at?: string | null
+          responsable?: string | null
+          semaforo?: string | null
+          unidad?: string | null
+          updated_at?: string
+          weekly_feedback?: Json | null
         }
         Update: {
+          actual_value?: number | null
+          asana_gid?: string | null
           brand?: string
-          created_at?: string | null
+          canal?: string | null
+          created_at?: string
           id?: string
-          kr_items?: Json | null
+          meta_value?: number | null
           objetivo?: string
           periodo?: string
-          status?: string | null
-          updated_at?: string | null
+          responsable?: string | null
+          semaforo?: string | null
+          unidad?: string | null
+          updated_at?: string
+          weekly_feedback?: Json | null
         }
         Relationships: []
       }
