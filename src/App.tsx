@@ -11,10 +11,7 @@ import Finanzas from "./pages/Finanzas";
 import KPIsFinancieros from "./pages/KPIsFinancieros";
 import AgentesIA from "./pages/AgentesIA";
 import Ventas from "./pages/Ventas";
-import TikTokShop from "./pages/TikTokShop";
-import ShopifyPage from "./pages/ShopifyPage";
-import MetaAds from "./pages/MetaAds";
-import Creativos from "./pages/Creativos";
+import CreativosYPauta from "./pages/CreativosYPauta";
 import OrganicoSocial from "./pages/OrganicoSocial";
 import OKRs from "./pages/OKRs";
 import Configuracion from "./pages/Configuracion";
@@ -29,15 +26,13 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/ventas" element={<Ventas />} />
-        <Route path="/tiktok-shop" element={<TikTokShop />} />
         <Route path="/lives" element={<Lives />} />
-        <Route path="/shopify" element={<ShopifyPage />} />
-        <Route path="/meta-ads" element={<MetaAds />} />
+        <Route path="/creativos" element={<CreativosYPauta />} />
         <Route path="/organico" element={<OrganicoSocial />} />
         <Route path="/finanzas" element={<Finanzas />} />
         <Route path="/kpis" element={<KPIsFinancieros />} />
         <Route path="/okrs" element={<OKRs />} />
-        <Route path="/creativos" element={<Creativos />} />
+        
         <Route path="/agentes" element={<AgentesIA />} />
         <Route path="/configuracion" element={<Configuracion />} />
         <Route path="*" element={<NotFound />} />

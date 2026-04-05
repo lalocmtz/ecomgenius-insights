@@ -1,7 +1,7 @@
 import { useAppStore } from '@/store/useAppStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, TrendingUp, ShoppingBag, Video, Store, Target as TargetIcon,
+  LayoutDashboard, TrendingUp, Video, Target as TargetIcon,
   Smartphone, DollarSign, BarChart3, Flag, Bot, Settings, Zap, HelpCircle,
   ChevronLeft, ChevronRight, Palette,
 } from 'lucide-react';
@@ -9,14 +9,11 @@ import {
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: TrendingUp, label: 'Ventas', path: '/ventas' },
-  { icon: ShoppingBag, label: 'TikTok Shop', path: '/tiktok-shop' },
   { icon: Video, label: 'Lives', path: '/lives', feelInkOnly: true },
-  { icon: Store, label: 'Shopify', path: '/shopify' },
-  { icon: TargetIcon, label: 'Meta Ads', path: '/meta-ads' },
+  { icon: Palette, label: 'Creativos & Pauta', path: '/creativos' },
   { icon: Smartphone, label: 'Orgánico Social', path: '/organico' },
   { icon: DollarSign, label: 'Finanzas', path: '/finanzas' },
   { icon: BarChart3, label: 'KPIs Financieros', path: '/kpis' },
-  { icon: Palette, label: 'Creativos', path: '/creativos' },
   { icon: Flag, label: 'OKRs', path: '/okrs' },
   { icon: Bot, label: 'Agentes IA', path: '/agentes' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },
