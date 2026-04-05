@@ -16,8 +16,8 @@ interface AppStore {
 export const useAppStore = create<AppStore>((set) => ({
   activeBrand: 'feel_ink',
   dateRange: {
-    from: new Date(2025, 2, 1),
-    to: new Date(2025, 3, 2),
+    from: new Date(2026, 2, 1),
+    to: new Date(2026, 3, 4),
   },
   sidebarCollapsed: false,
   editMode: false,
