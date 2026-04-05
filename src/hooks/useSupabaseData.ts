@@ -96,22 +96,6 @@ export function useOrganicoPosts() {
   });
 }
 
-// ─── OKRs ───
-export function useOKRs() {
-  const { activeBrand } = useAppStore();
-  return useQuery({
-    queryKey: ['okrs', activeBrand],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('okrs')
-        .select('*')
-        .eq('brand', activeBrand)
-        .order('periodo', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
 
 // ─── Agent Conversations ───
 export function useAgentConversations() {
