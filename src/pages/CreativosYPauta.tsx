@@ -58,7 +58,8 @@ export default function CreativosYPauta() {
   // Channel breakdown from daily_metrics
   const channelBreakdown = useMemo(() => {
     if (!metrics?.length) return [];
-    const adRows = metrics.filter(m => m.canal === 'Meta' || m.canal === 'TikTok Ads');
+    const adChannels = ['Meta', 'TikTok Ads', 'GMV Max'];
+    const adRows = metrics.filter(m => adChannels.includes(m.canal));
     const map: Record<string, { canal: string; spend: number; revenue: number; pedidos: number }> = {};
     adRows.forEach(m => {
       if (!map[m.canal]) map[m.canal] = { canal: m.canal, spend: 0, revenue: 0, pedidos: 0 };
