@@ -9,14 +9,14 @@ import {
 import { useMemo, useState } from 'react';
 
 const CANAL_ICONS: Record<string, string> = {
-  'Meta': '📘', 'Google': '🔍', 'TikTok Ads': '📱', 'GMV MAX': '🎵',
-  'Lives': '🔴', 'Email': '✉️', 'Mercado Libre': '🛒',
+  'Meta': '📘', 'Google': '🔍', 'TikTok Ads': '📱', 'GMV Max': '🎵',
+  'TikTok Lives': '🔴', 'Email': '✉️', 'Mercado Libre': '🛒',
   'Afiliados TikTok': '🤝', 'Amazon': '📦', 'Burbuxa': '🫧',
 };
 
 const CANAL_COLORS: Record<string, string> = {
-  'Meta': '#4267B2', 'Google': '#34A853', 'TikTok Ads': '#FF004F',
-  'GMV MAX': '#25F4EE', 'Lives': '#EF4444', 'Email': '#F59E0B',
+  'Meta': '#4267B2', 'Google': '#34A853', 'TikTok Ads': '#06B6D4',
+  'GMV Max': '#22c55e', 'TikTok Lives': '#A855F7', 'Email': '#F59E0B',
   'Mercado Libre': '#FFE600', 'Afiliados TikTok': '#69C9D0',
   'Amazon': '#FF9900', 'Burbuxa': '#A78BFA',
 };

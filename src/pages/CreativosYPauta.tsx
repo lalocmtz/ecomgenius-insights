@@ -11,7 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 
-const CHANNELS = ['Todos', 'Meta', 'TikTok Ads'] as const;
+const CHANNELS = ['Todos', 'Meta', 'TikTok Ads', 'GMV Max'] as const;
 type Channel = (typeof CHANNELS)[number];
 
 const CREATIVE_GRADIENTS: Record<string, string> = {
@@ -38,8 +38,9 @@ export default function CreativosYPauta() {
   // KPIs from real daily_metrics (Meta + TikTok Ads channels)
   const adMetrics = useMemo(() => {
     if (!metrics?.length) return { spend: 0, revenue: 0, pedidos: 0, clicks: 0, impressions: 0 };
+    const adChannels = ['Meta', 'TikTok Ads', 'GMV Max'];
     const adRows = metrics.filter(m => {
-      if (selectedChannel === 'Todos') return m.canal === 'Meta' || m.canal === 'TikTok Ads';
+      if (selectedChannel === 'Todos') return adChannels.includes(m.canal);
       return m.canal === selectedChannel;
     });
     return {
@@ -57,7 +58,8 @@ export default function CreativosYPauta() {
   // Channel breakdown from daily_metrics
   const channelBreakdown = useMemo(() => {
     if (!metrics?.length) return [];
-    const adRows = metrics.filter(m => m.canal === 'Meta' || m.canal === 'TikTok Ads');
+    const adChannels = ['Meta', 'TikTok Ads', 'GMV Max'];
+    const adRows = metrics.filter(m => adChannels.includes(m.canal));
     const map: Record<string, { canal: string; spend: number; revenue: number; pedidos: number }> = {};
     adRows.forEach(m => {
       if (!map[m.canal]) map[m.canal] = { canal: m.canal, spend: 0, revenue: 0, pedidos: 0 };
@@ -72,7 +74,7 @@ export default function CreativosYPauta() {
   const filteredCreativos = useMemo(() => {
     if (!creativos?.length) return [];
     if (selectedChannel === 'Todos') return creativos;
-    const platMap: Record<string, string> = { 'Meta': 'meta', 'TikTok Ads': 'tiktok_ads' };
+    const platMap: Record<string, string> = { 'Meta': 'meta', 'TikTok Ads': 'tiktok_ads', 'GMV Max': 'tiktok_ads' };
     return creativos.filter(c => c.plataforma === platMap[selectedChannel]);
   }, [creativos, selectedChannel]);
 
@@ -200,7 +202,7 @@ export default function CreativosYPauta() {
     );
   }
 
-  const noData = !metrics?.length && !creativos?.length;
+  const noCreativos = !creativos?.length;
 
   return (
     <div className="space-y-6">
@@ -471,9 +473,9 @@ export default function CreativosYPauta() {
         </div>
       </div>
 
-      {noData && (
+      {noCreativos && (
         <div className="text-center py-12 text-muted-foreground text-sm">
-          Sin datos para el periodo seleccionado
+          No hay creativos registrados aún
         </div>
       )}
     </div>
