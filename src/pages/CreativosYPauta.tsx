@@ -11,7 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 
-const CHANNELS = ['Todos', 'Meta', 'TikTok Ads'] as const;
+const CHANNELS = ['Todos', 'Meta', 'TikTok Ads', 'GMV Max'] as const;
 type Channel = (typeof CHANNELS)[number];
 
 const CREATIVE_GRADIENTS: Record<string, string> = {
