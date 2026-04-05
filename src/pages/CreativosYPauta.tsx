@@ -38,8 +38,9 @@ export default function CreativosYPauta() {
   // KPIs from real daily_metrics (Meta + TikTok Ads channels)
   const adMetrics = useMemo(() => {
     if (!metrics?.length) return { spend: 0, revenue: 0, pedidos: 0, clicks: 0, impressions: 0 };
+    const adChannels = ['Meta', 'TikTok Ads', 'GMV Max'];
     const adRows = metrics.filter(m => {
-      if (selectedChannel === 'Todos') return m.canal === 'Meta' || m.canal === 'TikTok Ads';
+      if (selectedChannel === 'Todos') return adChannels.includes(m.canal);
       return m.canal === selectedChannel;
     });
     return {
