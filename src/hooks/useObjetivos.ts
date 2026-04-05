@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/store/useAppStore';
+import { toast } from 'sonner';
 
 export interface Objetivo {
   id: string;
@@ -21,7 +22,6 @@ export interface Objetivo {
   weekly_totals?: Record<string, number>;
 }
 
-// Week definitions for April 2026
 export const APRIL_WEEKS = [
   { label: 'Sem 1', from: '2026-04-01', to: '2026-04-06' },
   { label: 'Sem 2', from: '2026-04-07', to: '2026-04-13' },
@@ -36,7 +36,6 @@ export function useObjetivos(periodo = 'ABR-2026') {
   return useQuery({
     queryKey: ['objetivos', activeBrand, periodo],
     queryFn: async () => {
-      // Fetch objetivos
       const { data: objetivos, error } = await supabase
         .from('objetivos')
         .select('*')
@@ -45,7 +44,6 @@ export function useObjetivos(periodo = 'ABR-2026') {
         .order('meta_value', { ascending: false });
       if (error) throw error;
 
-      // Fetch daily_metrics for April 2026 to auto-calc canal-linked objetivos
       const { data: metrics } = await supabase
         .from('daily_metrics')
         .select('canal, date, ventas_brutas')
@@ -63,7 +61,6 @@ export function useObjetivos(periodo = 'ABR-2026') {
           const canalRows = metricsRows.filter(m => m.canal === obj.canal);
           computed_actual = canalRows.reduce((s, r) => s + Number(r.ventas_brutas || 0), 0);
 
-          // Weekly breakdown
           for (const week of APRIL_WEEKS) {
             weekly_totals[week.label] = canalRows
               .filter(r => r.date >= week.from && r.date <= week.to)
@@ -83,8 +80,7 @@ export function useObjetivos(periodo = 'ABR-2026') {
 }
 
 export function useUpdateObjetivo() {
-  const queryClient = (await import('@tanstack/react-query')).useQueryClient();
-  const { useMutation } = await import('@tanstack/react-query');
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ id, field, value }: { id: string; field: string; value: unknown }) => {
@@ -95,7 +91,11 @@ export function useUpdateObjetivo() {
       if (error) throw error;
     },
     onSuccess: () => {
+      toast.success('✓ Guardado');
       queryClient.invalidateQueries({ queryKey: ['objetivos'] });
+    },
+    onError: (err: Error) => {
+      toast.error('Error: ' + err.message);
     },
   });
 }

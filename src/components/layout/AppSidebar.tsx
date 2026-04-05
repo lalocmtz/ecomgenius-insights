@@ -14,7 +14,7 @@ const navItems = [
   { icon: Smartphone, label: 'Orgánico Social', path: '/organico' },
   { icon: DollarSign, label: 'Finanzas', path: '/finanzas' },
   { icon: BarChart3, label: 'KPIs Financieros', path: '/kpis' },
-  { icon: Flag, label: 'OKRs', path: '/okrs' },
+  { icon: Flag, label: 'Objetivos', path: '/objetivos' },
   { icon: Bot, label: 'Agentes IA', path: '/agentes' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },
 ];

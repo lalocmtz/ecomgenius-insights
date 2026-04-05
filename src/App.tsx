@@ -31,7 +31,7 @@ function AppContent() {
         <Route path="/organico" element={<OrganicoSocial />} />
         <Route path="/finanzas" element={<Finanzas />} />
         <Route path="/kpis" element={<KPIsFinancieros />} />
-        <Route path="/okrs" element={<OKRs />} />
+        <Route path="/objetivos" element={<Objetivos />} />
         
         <Route path="/agentes" element={<AgentesIA />} />
         <Route path="/configuracion" element={<Configuracion />} />
