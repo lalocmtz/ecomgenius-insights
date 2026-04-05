@@ -28,10 +28,8 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/ventas" element={<Ventas />} />
-        <Route path="/tiktok-shop" element={<TikTokShop />} />
         <Route path="/lives" element={<Lives />} />
-        <Route path="/shopify" element={<ShopifyPage />} />
-        <Route path="/meta-ads" element={<MetaAds />} />
+        <Route path="/creativos" element={<CreativosYPauta />} />
         <Route path="/organico" element={<OrganicoSocial />} />
         <Route path="/finanzas" element={<Finanzas />} />
         <Route path="/kpis" element={<KPIsFinancieros />} />
