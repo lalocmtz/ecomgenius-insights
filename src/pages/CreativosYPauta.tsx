@@ -200,7 +200,7 @@ export default function CreativosYPauta() {
     );
   }
 
-  const noData = !metrics?.length && !creativos?.length;
+  const noCreativos = !creativos?.length;
 
   return (
     <div className="space-y-6">
