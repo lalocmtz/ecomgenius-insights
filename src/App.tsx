@@ -32,7 +32,7 @@ function AppContent() {
         <Route path="/finanzas" element={<Finanzas />} />
         <Route path="/kpis" element={<KPIsFinancieros />} />
         <Route path="/okrs" element={<OKRs />} />
-        <Route path="/creativos" element={<Creativos />} />
+        
         <Route path="/agentes" element={<AgentesIA />} />
         <Route path="/configuracion" element={<Configuracion />} />
         <Route path="*" element={<NotFound />} />
