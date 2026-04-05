@@ -147,7 +147,7 @@ export function useMarginScenarios() {
 }
 
 // ─── Generic Update Mutation ───
-export function useUpdateCell(table: 'lives_analysis' | 'daily_metrics' | 'kpis_monthly' | 'okrs' | 'creativos' | 'organico_posts') {
+export function useUpdateCell(table: 'lives_analysis' | 'daily_metrics' | 'kpis_monthly' | 'creativos' | 'organico_posts') {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, field, value }: { id: string; field: string; value: unknown }) => {
