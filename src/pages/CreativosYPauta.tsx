@@ -471,9 +471,9 @@ export default function CreativosYPauta() {
         </div>
       </div>
 
-      {noData && (
+      {noCreativos && (
         <div className="text-center py-12 text-muted-foreground text-sm">
-          Sin datos para el periodo seleccionado
+          No hay creativos registrados aún
         </div>
       )}
     </div>
