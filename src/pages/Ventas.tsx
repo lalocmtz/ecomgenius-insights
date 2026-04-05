@@ -37,20 +37,20 @@ type SortKey = 'date' | 'canal' | 'ventas_brutas' | 'pedidos' | 'guias' | 'anunc
 type SortDir = 'asc' | 'desc';
 
 const CANAL_COLORS: Record<string, string> = {
-  'Meta': '#3b82f6', 'Google': '#eab308', 'TikTok Ads': '#ef4444',
-  'GMV MAX': '#a855f7', 'Lives': '#f97316', 'Email': '#6b7280',
+  'Meta': '#3b82f6', 'Google': '#eab308', 'TikTok Ads': '#06B6D4',
+  'GMV Max': '#22c55e', 'TikTok Lives': '#a855f7', 'Email': '#6b7280',
   'Mercado Libre': '#22c55e', 'Afiliados TikTok': '#69C9D0',
   'Amazon': '#FF9900', 'Burbuxa': '#A78BFA',
 };
 
 const CANAL_ICONS: Record<string, string> = {
-  'Meta': '📘', 'Google': '🔍', 'TikTok Ads': '📱', 'GMV MAX': '🎵',
-  'Lives': '🔴', 'Email': '✉️', 'Mercado Libre': '🛒',
+  'Meta': '📘', 'Google': '🔍', 'TikTok Ads': '📱', 'GMV Max': '🎵',
+  'TikTok Lives': '🔴', 'Email': '✉️', 'Mercado Libre': '🛒',
   'Afiliados TikTok': '🤝', 'Amazon': '📦', 'Burbuxa': '🫧',
 };
 
 const CHANNEL_PILLS = [
-  'Todos', 'Meta', 'TikTok Ads', 'GMV MAX', 'Lives',
+  'Todos', 'Meta', 'TikTok Ads', 'GMV Max', 'TikTok Lives',
   'Mercado Libre', 'Google', 'Email', 'Afiliados TikTok', 'Burbuxa', 'Amazon',
 ];
 

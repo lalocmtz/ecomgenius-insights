@@ -74,7 +74,7 @@ export default function CreativosYPauta() {
   const filteredCreativos = useMemo(() => {
     if (!creativos?.length) return [];
     if (selectedChannel === 'Todos') return creativos;
-    const platMap: Record<string, string> = { 'Meta': 'meta', 'TikTok Ads': 'tiktok_ads' };
+    const platMap: Record<string, string> = { 'Meta': 'meta', 'TikTok Ads': 'tiktok_ads', 'GMV Max': 'tiktok_ads' };
     return creativos.filter(c => c.plataforma === platMap[selectedChannel]);
   }, [creativos, selectedChannel]);
 

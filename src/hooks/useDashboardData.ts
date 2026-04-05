@@ -7,8 +7,8 @@ const MESES_ES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','N
 export const KPI_CANAL_MAP: Record<string, string> = {
   ventas_meta: 'Meta',
   ventas_tiktok_ads: 'TikTok Ads',
-  ventas_gmv: 'GMV MAX',
-  ventas_lives: 'Lives',
+  ventas_gmv: 'GMV Max',
+  ventas_lives: 'TikTok Lives',
   ventas_ml: 'Mercado Libre',
   ventas_google: 'Google',
   ventas_email: 'Email',
