@@ -1,7 +1,7 @@
 import { useAppStore } from '@/store/useAppStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, TrendingUp, ShoppingBag, Video, Store, Target as TargetIcon,
+  LayoutDashboard, TrendingUp, Video, Target as TargetIcon,
   Smartphone, DollarSign, BarChart3, Flag, Bot, Settings, Zap, HelpCircle,
   ChevronLeft, ChevronRight, Palette,
 } from 'lucide-react';
