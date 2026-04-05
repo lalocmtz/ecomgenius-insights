@@ -96,22 +96,6 @@ export function useOrganicoPosts() {
   });
 }
 
-// ─── OKRs ───
-export function useOKRs() {
-  const { activeBrand } = useAppStore();
-  return useQuery({
-    queryKey: ['okrs', activeBrand],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('okrs')
-        .select('*')
-        .eq('brand', activeBrand)
-        .order('periodo', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
-}
 
 // ─── Agent Conversations ───
 export function useAgentConversations() {
@@ -163,7 +147,7 @@ export function useMarginScenarios() {
 }
 
 // ─── Generic Update Mutation ───
-export function useUpdateCell(table: 'lives_analysis' | 'daily_metrics' | 'kpis_monthly' | 'okrs' | 'creativos' | 'organico_posts') {
+export function useUpdateCell(table: 'lives_analysis' | 'daily_metrics' | 'kpis_monthly' | 'creativos' | 'organico_posts') {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, field, value }: { id: string; field: string; value: unknown }) => {
@@ -206,7 +190,7 @@ export function useRealtimeSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'okrs', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs'] as const;
+    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs'] as const;
     
     const channel = supabase
       .channel('realtime-all')

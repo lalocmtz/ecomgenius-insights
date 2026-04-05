@@ -13,7 +13,7 @@ import AgentesIA from "./pages/AgentesIA";
 import Ventas from "./pages/Ventas";
 import CreativosYPauta from "./pages/CreativosYPauta";
 import OrganicoSocial from "./pages/OrganicoSocial";
-import OKRs from "./pages/OKRs";
+import Objetivos from "./pages/Objetivos";
 import Configuracion from "./pages/Configuracion";
 import NotFound from "./pages/NotFound";
 
@@ -31,7 +31,7 @@ function AppContent() {
         <Route path="/organico" element={<OrganicoSocial />} />
         <Route path="/finanzas" element={<Finanzas />} />
         <Route path="/kpis" element={<KPIsFinancieros />} />
-        <Route path="/okrs" element={<OKRs />} />
+        <Route path="/objetivos" element={<Objetivos />} />
         
         <Route path="/agentes" element={<AgentesIA />} />
         <Route path="/configuracion" element={<Configuracion />} />
