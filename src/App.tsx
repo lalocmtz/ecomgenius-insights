@@ -11,8 +11,6 @@ import Finanzas from "./pages/Finanzas";
 import KPIsFinancieros from "./pages/KPIsFinancieros";
 import AgentesIA from "./pages/AgentesIA";
 import Ventas from "./pages/Ventas";
-import TikTokShop from "./pages/TikTokShop";
-import ShopifyPage from "./pages/ShopifyPage";
 import CreativosYPauta from "./pages/CreativosYPauta";
 import OrganicoSocial from "./pages/OrganicoSocial";
 import OKRs from "./pages/OKRs";
