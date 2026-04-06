@@ -18,17 +18,18 @@ export interface Objetivo {
   weekly_feedback: any[];
   created_at: string | null;
   updated_at: string | null;
-  computed_actual?: number;
-  weekly_totals?: Record<string, number>;
+  meta_roas: number | null;
+  presupuesto_mensual: number | null;
+  presupuesto_invertido: number | null;
+  resultado_venta: number | null;
+  cantidad_lives: number | null;
+  horas_lives: number | null;
+  tipo: string | null;
+  comentarios_bien: string | null;
+  comentarios_mal: string | null;
+  tareas_prioritarias: string | null;
+  data_source: string | null;
 }
-
-export const APRIL_WEEKS = [
-  { label: 'Sem 1', from: '2026-04-01', to: '2026-04-06' },
-  { label: 'Sem 2', from: '2026-04-07', to: '2026-04-13' },
-  { label: 'Sem 3', from: '2026-04-14', to: '2026-04-20' },
-  { label: 'Sem 4', from: '2026-04-21', to: '2026-04-27' },
-  { label: 'Sem 5', from: '2026-04-28', to: '2026-04-30' },
-];
 
 export function useObjetivos(periodo = 'ABR-2026') {
   const { activeBrand } = useAppStore();
@@ -36,45 +37,17 @@ export function useObjetivos(periodo = 'ABR-2026') {
   return useQuery({
     queryKey: ['objetivos', activeBrand, periodo],
     queryFn: async () => {
-      const { data: objetivos, error } = await supabase
+      const { data, error } = await supabase
         .from('objetivos')
         .select('*')
         .eq('brand', activeBrand)
         .eq('periodo', periodo)
         .order('meta_value', { ascending: false });
       if (error) throw error;
-
-      const { data: metrics } = await supabase
-        .from('daily_metrics')
-        .select('canal, date, ventas_brutas')
-        .eq('brand', activeBrand)
-        .gte('date', '2026-04-01')
-        .lte('date', '2026-04-30');
-
-      const metricsRows = metrics || [];
-
-      return (objetivos || []).map((obj): Objetivo => {
-        let computed_actual = obj.actual_value;
-        let weekly_totals: Record<string, number> = {};
-
-        if (obj.canal) {
-          const canalRows = metricsRows.filter(m => m.canal === obj.canal);
-          computed_actual = canalRows.reduce((s, r) => s + Number(r.ventas_brutas || 0), 0);
-
-          for (const week of APRIL_WEEKS) {
-            weekly_totals[week.label] = canalRows
-              .filter(r => r.date >= week.from && r.date <= week.to)
-              .reduce((s, r) => s + Number(r.ventas_brutas || 0), 0);
-          }
-        }
-
-        return {
-          ...obj,
-          weekly_feedback: (obj.weekly_feedback as any[]) || [],
-          computed_actual,
-          weekly_totals,
-        };
-      });
+      return (data || []).map((obj): Objetivo => ({
+        ...obj,
+        weekly_feedback: (obj.weekly_feedback as any[]) || [],
+      }));
     },
   });
 }
@@ -91,7 +64,45 @@ export function useUpdateObjetivo() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('✓ Guardado');
+      queryClient.invalidateQueries({ queryKey: ['objetivos'] });
+    },
+    onError: (err: Error) => {
+      toast.error('Error: ' + err.message);
+    },
+  });
+}
+
+export function useCreateObjetivo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (obj: {
+      brand: string;
+      periodo: string;
+      objetivo: string;
+      tipo: string;
+      responsable: string;
+      meta_value?: number | null;
+      meta_roas?: number | null;
+      presupuesto_mensual?: number | null;
+      data_source?: string | null;
+    }) => {
+      const { error } = await supabase.from('objetivos').insert({
+        brand: obj.brand,
+        periodo: obj.periodo,
+        objetivo: obj.objetivo,
+        tipo: obj.tipo,
+        responsable: obj.responsable,
+        meta_value: obj.meta_value ?? null,
+        meta_roas: obj.meta_roas ?? null,
+        presupuesto_mensual: obj.presupuesto_mensual ?? null,
+        data_source: obj.data_source === 'Ninguno' ? null : (obj.data_source ?? null),
+        semaforo: '🟡',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Objetivo creado');
       queryClient.invalidateQueries({ queryKey: ['objetivos'] });
     },
     onError: (err: Error) => {
