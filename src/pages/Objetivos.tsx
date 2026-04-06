@@ -179,7 +179,8 @@ export default function Objetivos() {
     const presupuestoEsperado = presupuesto > 0 ? (presupuesto / DAYS_IN_MONTH) * DAY_OF_MONTH : 0;
     const roasActual = invertido > 0 ? resultado / invertido : 0;
     const semaforo = meta > 0 ? calcSemaforo(pct) : (obj.semaforo || '🟡');
-    return { ...obj, pct, ventaEsperada, presupuestoEsperado, roasActual, semaforo, resultado, invertido, meta, presupuesto };
+    const is_auto = obj.is_auto ?? false;
+    return { ...obj, pct, ventaEsperada, presupuestoEsperado, roasActual, semaforo, resultado, invertido, meta, presupuesto, is_auto };
   });
 
   const onTrack = enriched.filter(o => o.semaforo === '🟢').length;
