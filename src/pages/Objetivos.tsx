@@ -325,12 +325,26 @@ export default function Objetivos() {
                     {obj.tipo === 'lives' && (
                       <>
                         <div className="bg-secondary/50 rounded-lg p-3">
-                          <p className="text-[10px] text-muted-foreground uppercase">Cantidad lives</p>
-                          <DebouncedInput value={obj.cantidad_lives} onSave={v => saveField(obj.id, 'cantidad_lives', v)} />
+                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                            Cantidad lives
+                            {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                          </p>
+                          {obj.is_auto ? (
+                            <p className="text-sm font-medium text-foreground">{obj.cantidad_lives ?? 0}</p>
+                          ) : (
+                            <DebouncedInput value={obj.cantidad_lives} onSave={v => saveField(obj.id, 'cantidad_lives', v)} />
+                          )}
                         </div>
                         <div className="bg-secondary/50 rounded-lg p-3">
-                          <p className="text-[10px] text-muted-foreground uppercase">Horas lives</p>
-                          <DebouncedInput value={obj.horas_lives} onSave={v => saveField(obj.id, 'horas_lives', v)} />
+                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                            Horas lives
+                            {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                          </p>
+                          {obj.is_auto ? (
+                            <p className="text-sm font-medium text-foreground">{(obj.horas_lives ?? 0).toFixed(1)}h</p>
+                          ) : (
+                            <DebouncedInput value={obj.horas_lives} onSave={v => saveField(obj.id, 'horas_lives', v)} />
+                          )}
                         </div>
                       </>
                     )}
