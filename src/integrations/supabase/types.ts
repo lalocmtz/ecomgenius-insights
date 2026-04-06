@@ -410,13 +410,24 @@ export type Database = {
           asana_gid: string | null
           brand: string
           canal: string | null
+          cantidad_lives: number | null
+          comentarios_bien: string | null
+          comentarios_mal: string | null
           created_at: string
+          data_source: string | null
+          horas_lives: number | null
           id: string
+          meta_roas: number | null
           meta_value: number | null
           objetivo: string
           periodo: string
+          presupuesto_invertido: number | null
+          presupuesto_mensual: number | null
           responsable: string | null
+          resultado_venta: number | null
           semaforo: string | null
+          tareas_prioritarias: string | null
+          tipo: string | null
           unidad: string | null
           updated_at: string
           weekly_feedback: Json | null
@@ -426,13 +437,24 @@ export type Database = {
           asana_gid?: string | null
           brand: string
           canal?: string | null
+          cantidad_lives?: number | null
+          comentarios_bien?: string | null
+          comentarios_mal?: string | null
           created_at?: string
+          data_source?: string | null
+          horas_lives?: number | null
           id?: string
+          meta_roas?: number | null
           meta_value?: number | null
           objetivo: string
           periodo: string
+          presupuesto_invertido?: number | null
+          presupuesto_mensual?: number | null
           responsable?: string | null
+          resultado_venta?: number | null
           semaforo?: string | null
+          tareas_prioritarias?: string | null
+          tipo?: string | null
           unidad?: string | null
           updated_at?: string
           weekly_feedback?: Json | null
@@ -442,13 +464,24 @@ export type Database = {
           asana_gid?: string | null
           brand?: string
           canal?: string | null
+          cantidad_lives?: number | null
+          comentarios_bien?: string | null
+          comentarios_mal?: string | null
           created_at?: string
+          data_source?: string | null
+          horas_lives?: number | null
           id?: string
+          meta_roas?: number | null
           meta_value?: number | null
           objetivo?: string
           periodo?: string
+          presupuesto_invertido?: number | null
+          presupuesto_mensual?: number | null
           responsable?: string | null
+          resultado_venta?: number | null
           semaforo?: string | null
+          tareas_prioritarias?: string | null
+          tipo?: string | null
           unidad?: string | null
           updated_at?: string
           weekly_feedback?: Json | null
