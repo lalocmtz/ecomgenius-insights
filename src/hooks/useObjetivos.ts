@@ -53,10 +53,15 @@ function parsePeriodo(periodo: string): { from: string; to: string } | null {
 }
 
 const SOURCE_TO_CANAL: Record<string, string> = {
+  meta: 'Meta',
   Meta: 'Meta',
+  google: 'Google',
   Google: 'Google',
+  tiktok_ads: 'TikTok Ads',
   'TikTok Ads': 'TikTok Ads',
+  tiktok_lives: 'TikTok Lives',
   'TikTok Lives': 'TikTok Lives',
+  gmv_max: 'GMV Max',
   'GMV Max': 'GMV Max',
 };
 
