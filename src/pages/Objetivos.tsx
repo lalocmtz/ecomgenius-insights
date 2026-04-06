@@ -284,8 +284,15 @@ export default function Objetivos() {
                       </div>
                     )}
                     <div className="bg-secondary/50 rounded-lg p-3">
-                      <p className="text-[10px] text-muted-foreground uppercase">Resultado venta</p>
-                      <DebouncedInput value={obj.resultado} onSave={v => saveField(obj.id, 'resultado_venta', v)} />
+                      <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                        Resultado venta
+                        {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                      </p>
+                      {obj.is_auto ? (
+                        <p className="text-sm font-medium text-foreground">{formatMXN(obj.resultado)}</p>
+                      ) : (
+                        <DebouncedInput value={obj.resultado} onSave={v => saveField(obj.id, 'resultado_venta', v)} />
+                      )}
                     </div>
                     {obj.presupuesto > 0 && (
                       <div className="bg-secondary/50 rounded-lg p-3">
@@ -294,8 +301,15 @@ export default function Objetivos() {
                       </div>
                     )}
                     <div className="bg-secondary/50 rounded-lg p-3">
-                      <p className="text-[10px] text-muted-foreground uppercase">Presup. invertido</p>
-                      <DebouncedInput value={obj.invertido} onSave={v => saveField(obj.id, 'presupuesto_invertido', v)} />
+                      <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                        Presup. invertido
+                        {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                      </p>
+                      {obj.is_auto ? (
+                        <p className="text-sm font-medium text-foreground">{formatMXN(obj.invertido)}</p>
+                      ) : (
+                        <DebouncedInput value={obj.invertido} onSave={v => saveField(obj.id, 'presupuesto_invertido', v)} />
+                      )}
                     </div>
                     {obj.invertido > 0 && (
                       <div className="bg-secondary/50 rounded-lg p-3">
