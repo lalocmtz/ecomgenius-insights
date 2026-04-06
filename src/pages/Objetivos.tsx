@@ -179,7 +179,8 @@ export default function Objetivos() {
     const presupuestoEsperado = presupuesto > 0 ? (presupuesto / DAYS_IN_MONTH) * DAY_OF_MONTH : 0;
     const roasActual = invertido > 0 ? resultado / invertido : 0;
     const semaforo = meta > 0 ? calcSemaforo(pct) : (obj.semaforo || '🟡');
-    return { ...obj, pct, ventaEsperada, presupuestoEsperado, roasActual, semaforo, resultado, invertido, meta, presupuesto };
+    const is_auto = obj.is_auto ?? false;
+    return { ...obj, pct, ventaEsperada, presupuestoEsperado, roasActual, semaforo, resultado, invertido, meta, presupuesto, is_auto };
   });
 
   const onTrack = enriched.filter(o => o.semaforo === '🟢').length;
@@ -284,8 +285,15 @@ export default function Objetivos() {
                       </div>
                     )}
                     <div className="bg-secondary/50 rounded-lg p-3">
-                      <p className="text-[10px] text-muted-foreground uppercase">Resultado venta</p>
-                      <DebouncedInput value={obj.resultado} onSave={v => saveField(obj.id, 'resultado_venta', v)} />
+                      <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                        Resultado venta
+                        {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                      </p>
+                      {obj.is_auto ? (
+                        <p className="text-sm font-medium text-foreground">{formatMXN(obj.resultado)}</p>
+                      ) : (
+                        <DebouncedInput value={obj.resultado} onSave={v => saveField(obj.id, 'resultado_venta', v)} />
+                      )}
                     </div>
                     {obj.presupuesto > 0 && (
                       <div className="bg-secondary/50 rounded-lg p-3">
@@ -294,8 +302,15 @@ export default function Objetivos() {
                       </div>
                     )}
                     <div className="bg-secondary/50 rounded-lg p-3">
-                      <p className="text-[10px] text-muted-foreground uppercase">Presup. invertido</p>
-                      <DebouncedInput value={obj.invertido} onSave={v => saveField(obj.id, 'presupuesto_invertido', v)} />
+                      <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                        Presup. invertido
+                        {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                      </p>
+                      {obj.is_auto ? (
+                        <p className="text-sm font-medium text-foreground">{formatMXN(obj.invertido)}</p>
+                      ) : (
+                        <DebouncedInput value={obj.invertido} onSave={v => saveField(obj.id, 'presupuesto_invertido', v)} />
+                      )}
                     </div>
                     {obj.invertido > 0 && (
                       <div className="bg-secondary/50 rounded-lg p-3">
@@ -311,12 +326,26 @@ export default function Objetivos() {
                     {obj.tipo === 'lives' && (
                       <>
                         <div className="bg-secondary/50 rounded-lg p-3">
-                          <p className="text-[10px] text-muted-foreground uppercase">Cantidad lives</p>
-                          <DebouncedInput value={obj.cantidad_lives} onSave={v => saveField(obj.id, 'cantidad_lives', v)} />
+                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                            Cantidad lives
+                            {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                          </p>
+                          {obj.is_auto ? (
+                            <p className="text-sm font-medium text-foreground">{obj.cantidad_lives ?? 0}</p>
+                          ) : (
+                            <DebouncedInput value={obj.cantidad_lives} onSave={v => saveField(obj.id, 'cantidad_lives', v)} />
+                          )}
                         </div>
                         <div className="bg-secondary/50 rounded-lg p-3">
-                          <p className="text-[10px] text-muted-foreground uppercase">Horas lives</p>
-                          <DebouncedInput value={obj.horas_lives} onSave={v => saveField(obj.id, 'horas_lives', v)} />
+                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                            Horas lives
+                            {obj.is_auto && <span className="text-[8px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">auto</span>}
+                          </p>
+                          {obj.is_auto ? (
+                            <p className="text-sm font-medium text-foreground">{(obj.horas_lives ?? 0).toFixed(1)}h</p>
+                          ) : (
+                            <DebouncedInput value={obj.horas_lives} onSave={v => saveField(obj.id, 'horas_lives', v)} />
+                          )}
                         </div>
                       </>
                     )}
