@@ -153,7 +153,7 @@ export function useUpdateCell(table: 'lives_analysis' | 'daily_metrics' | 'kpis_
     mutationFn: async ({ id, field, value }: { id: string; field: string; value: unknown }) => {
       const { error } = await supabase
         .from(table)
-        .update({ [field]: value })
+        .update({ [field]: value } as any)
         .eq('id', id);
       if (error) throw error;
     },
