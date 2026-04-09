@@ -93,38 +93,48 @@ Deno.serve(async (req: Request) => {
       }
 
       const twData = await twRes.json();
-      console.log(`[${brand}] TW keys:`, Object.keys(twData || {}));
-      // Log deeper structure for debugging
-      if (twData.metrics) {
-        console.log(`[${brand}] metrics type:`, typeof twData.metrics, Array.isArray(twData.metrics) ? "array" : "");
-        if (Array.isArray(twData.metrics)) {
-          console.log(`[${brand}] metrics[0] sample:`, JSON.stringify(twData.metrics[0])?.substring(0, 500));
-        } else {
-          console.log(`[${brand}] metrics keys:`, Object.keys(twData.metrics));
-          const firstKey = Object.keys(twData.metrics)[0];
-          if (firstKey) console.log(`[${brand}] metrics.${firstKey}:`, JSON.stringify(twData.metrics[firstKey])?.substring(0, 500));
+      console.log(`[${brand}] TW metrics count:`, Array.isArray(twData.metrics) ? twData.metrics.length : 'not array');
+      
+      // Log all metric IDs and their services
+      if (Array.isArray(twData.metrics)) {
+        for (const m of twData.metrics) {
+          console.log(`[${brand}] metric: ${m.metricId} | services: ${JSON.stringify(m.services)} | value: ${JSON.stringify(m.values?.current)} | serviceBreakdown: ${JSON.stringify(m.serviceBreakdown || m.breakdown || m.perService)?.substring(0, 300)}`);
         }
       }
 
-      // Parse channel data from various possible structures
-      const upsertRows: any[] = [];
-      const containers = [twData.data, twData.services, twData.channels, twData.summary, twData];
+      // Parse metrics array - TW summary-page returns metrics as array
+      // Each metric: { metricId, services[], values: { current }, serviceBreakdown? }
+      const channelData: Record<string, { revenue: number; spend: number; orders: number }> = {};
 
-      for (const container of containers) {
-        if (!container || typeof container !== "object" || upsertRows.length > 0) continue;
-        for (const [key, value] of Object.entries(container)) {
-          const canal = channelMap[key.toLowerCase()];
-          if (!canal || !value || typeof value !== "object") continue;
-          const v = value as any;
-          const revenue = v.totalSales || v.revenue || v.totalRevenue || v.pixelRevenue || v.sales || 0;
-          const spend = v.adSpend || v.spend || v.totalSpend || v.cost || 0;
-          const orders = v.totalOrders || v.orders || v.purchases || v.conversions || 0;
-          if (revenue > 0 || spend > 0 || orders > 0) {
-            upsertRows.push({ brand, date: startDate, canal, ventas_brutas: revenue, pedidos: orders, anuncios: spend, source: "triple_whale" });
+      if (Array.isArray(twData.metrics)) {
+        for (const metric of twData.metrics) {
+          const id = metric.metricId;
+          const services = metric.services || [];
+          const value = metric.values?.current || 0;
+
+          // Map metric to our fields
+          for (const svc of services) {
+            const canal = channelMap[svc.toLowerCase()];
+            if (!canal) continue;
+            if (!channelData[canal]) channelData[canal] = { revenue: 0, spend: 0, orders: 0 };
+
+            if (id === "totalSales" || id === "pixelRevenue" || id === "revenue") {
+              channelData[canal].revenue = value;
+            } else if (id === "adSpend" || id === "spend" || id === "totalSpend") {
+              channelData[canal].spend = value;
+            } else if (id === "totalOrders" || id === "orders" || id === "purchases") {
+              channelData[canal].orders = value;
+            }
           }
         }
       }
 
+      const upsertRows: any[] = [];
+      for (const [canal, data] of Object.entries(channelData)) {
+        if (data.revenue > 0 || data.spend > 0 || data.orders > 0) {
+          upsertRows.push({ brand, date: startDate, canal, ventas_brutas: data.revenue, pedidos: data.orders, anuncios: data.spend, source: "triple_whale" });
+        }
+      }
       // Upsert to daily_metrics
       let upserted = 0;
       for (const row of upsertRows) {
