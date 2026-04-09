@@ -12,9 +12,17 @@ Deno.serve(async (req: Request) => {
 
   try {
     const twApiKey = Deno.env.get("TRIPLE_WHALE_API_KEY");
+    const twShop = Deno.env.get("TRIPLE_WHALE_SHOP");
+
     if (!twApiKey) {
       return new Response(
-        JSON.stringify({ error: "Triple Whale API key not configured. Please add it in Configuración." }),
+        JSON.stringify({ error: "Triple Whale API key not configured." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!twShop) {
+      return new Response(
+        JSON.stringify({ error: "Triple Whale shop URL not configured. Add TRIPLE_WHALE_SHOP secret (e.g. 'your-store.myshopify.com')." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -24,30 +32,24 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json().catch(() => ({}));
-    const brands = body.brands || ["feel_ink", "skinglow"];
+    const brand = body.brand || "feel_ink";
 
-    // Get yesterday's date for sync
+    // Date range: yesterday
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split("T")[0];
 
-    // Fetch data from Triple Whale API
-    const twResponse = await fetch("https://api.triplewhale.com/api/v2/tw-metrics/metrics", {
+    // Use Triple Whale Summary Page endpoint
+    const twResponse = await fetch("https://api.triplewhale.com/api/v2/summary-page/get-data", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": twApiKey,
       },
       body: JSON.stringify({
+        shop: twShop,
         start: dateStr,
         end: dateStr,
-        period: "day",
-        metrics: [
-          "totalSales", "totalOrders", "adSpend",
-          "metaSpend", "metaRevenue",
-          "tiktokSpend", "tiktokRevenue",
-          "googleSpend", "googleRevenue",
-        ],
       }),
     });
 
@@ -60,40 +62,71 @@ Deno.serve(async (req: Request) => {
     }
 
     const twData = await twResponse.json();
+    console.log("Triple Whale response keys:", Object.keys(twData));
 
-    // Map Triple Whale data to daily_metrics rows
-    // This is a template — the exact mapping depends on TW API response structure
-    const channelMappings = [
-      { canal: "Meta", spendKey: "metaSpend", revenueKey: "metaRevenue" },
-      { canal: "Google", spendKey: "googleSpend", revenueKey: "googleRevenue" },
-      { canal: "TikTok Ads", spendKey: "tiktokSpend", revenueKey: "tiktokRevenue" },
-    ];
-
+    // The summary-page/get-data response contains channel-level metrics
+    // Structure varies — we extract what we can and upsert to daily_metrics
     const upsertRows: any[] = [];
 
-    for (const brand of brands) {
-      for (const mapping of channelMappings) {
-        upsertRows.push({
-          brand,
-          date: dateStr,
-          canal: mapping.canal,
-          ventas_brutas: twData?.[mapping.revenueKey] || 0,
-          anuncios: twData?.[mapping.spendKey] || 0,
-          source: "triple_whale",
-        });
+    // Try to extract channel data from the TW response
+    // TW typically returns data keyed by service/channel
+    const channelMap: Record<string, string> = {
+      "facebook": "Meta",
+      "facebook-ads": "Meta",
+      "meta": "Meta",
+      "google": "Google",
+      "google-ads": "Google",
+      "tiktok": "TikTok Ads",
+      "tiktok-ads": "TikTok Ads",
+    };
+
+    // Parse summary data - structure depends on TW response
+    if (twData && typeof twData === "object") {
+      // If the response has a 'data' or 'services' key with per-channel breakdowns
+      const services = twData.data || twData.services || twData;
+
+      for (const [key, value] of Object.entries(services)) {
+        const canal = channelMap[key.toLowerCase()];
+        if (canal && value && typeof value === "object") {
+          const v = value as any;
+          upsertRows.push({
+            brand,
+            date: dateStr,
+            canal,
+            ventas_brutas: v.totalSales || v.revenue || v.totalRevenue || 0,
+            pedidos: v.totalOrders || v.orders || 0,
+            anuncios: v.adSpend || v.spend || v.totalSpend || 0,
+            source: "triple_whale",
+          });
+        }
       }
     }
 
+    // If we got data, upsert it
     if (upsertRows.length > 0) {
-      const { error } = await supabase
-        .from("daily_metrics")
-        .upsert(upsertRows, { onConflict: "brand,date,canal" });
+      for (const row of upsertRows) {
+        // Try to find existing row first
+        const { data: existing } = await supabase
+          .from("daily_metrics")
+          .select("id")
+          .eq("brand", row.brand)
+          .eq("date", row.date)
+          .eq("canal", row.canal)
+          .maybeSingle();
 
-      if (error) {
-        return new Response(
-          JSON.stringify({ error: "Failed to upsert metrics", details: error.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        if (existing) {
+          await supabase
+            .from("daily_metrics")
+            .update({
+              ventas_brutas: row.ventas_brutas,
+              pedidos: row.pedidos,
+              anuncios: row.anuncios,
+              source: "triple_whale",
+            })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("daily_metrics").insert(row);
+        }
       }
     }
 
@@ -102,7 +135,10 @@ Deno.serve(async (req: Request) => {
         success: true,
         synced: upsertRows.length,
         date: dateStr,
-        message: `Synced ${upsertRows.length} rows for ${dateStr}`,
+        rawKeys: Object.keys(twData || {}),
+        message: upsertRows.length > 0
+          ? `Synced ${upsertRows.length} channel rows for ${dateStr}`
+          : `No channel data found in TW response. Check logs for response structure.`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
