@@ -1,9 +1,9 @@
 import { useAppStore } from '@/store/useAppStore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, TrendingUp, Video, Target as TargetIcon,
-  Smartphone, DollarSign, BarChart3, Flag, Bot, Settings, Zap, HelpCircle,
-  ChevronLeft, ChevronRight, Palette,
+  LayoutDashboard, TrendingUp, Video,
+  DollarSign, Flag, Bot, Settings, Zap, HelpCircle,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
