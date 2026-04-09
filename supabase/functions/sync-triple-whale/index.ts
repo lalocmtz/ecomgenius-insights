@@ -94,6 +94,17 @@ Deno.serve(async (req: Request) => {
 
       const twData = await twRes.json();
       console.log(`[${brand}] TW keys:`, Object.keys(twData || {}));
+      // Log deeper structure for debugging
+      if (twData.metrics) {
+        console.log(`[${brand}] metrics type:`, typeof twData.metrics, Array.isArray(twData.metrics) ? "array" : "");
+        if (Array.isArray(twData.metrics)) {
+          console.log(`[${brand}] metrics[0] sample:`, JSON.stringify(twData.metrics[0])?.substring(0, 500));
+        } else {
+          console.log(`[${brand}] metrics keys:`, Object.keys(twData.metrics));
+          const firstKey = Object.keys(twData.metrics)[0];
+          if (firstKey) console.log(`[${brand}] metrics.${firstKey}:`, JSON.stringify(twData.metrics[firstKey])?.substring(0, 500));
+        }
+      }
 
       // Parse channel data from various possible structures
       const upsertRows: any[] = [];
