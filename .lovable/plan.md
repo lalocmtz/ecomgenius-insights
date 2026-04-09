@@ -1,43 +1,44 @@
 
 
-# Plan: Rediseño Dashboard con daily_metrics
+## Plan: Simplify Platform + Fix Build Errors + Triple Whale Integration
 
-## Resumen
-Crear un hook `useDashboardData` que lea `daily_metrics` y `kpis_monthly` del mes actual, y reescribir `Dashboard.tsx` con 4 secciones nuevas. Insertar datos seed de KPIs ABR-2025 y daily_metrics de ejemplo (1-3 abril).
+### What changes
 
-## Archivos a crear/modificar
+1. **Remove pages**: Creativos & Pauta, Orgánico Social
+2. **Merge Finanzas + KPIs Financieros** into a single "Finanzas" page with tabs
+3. **Update sidebar and router** to reflect removals
+4. **Fix 3 TypeScript build errors** (dynamic `{ [field]: value }` update patterns)
+5. **Add Triple Whale data sync section** in Configuracion page
 
-### 1. Crear `src/hooks/useDashboardData.ts`
-- 2 queries React Query (staleTime 30s):
-  - `daily_metrics` filtrado por `activeBrand` + mes actual (día 1 → hoy)
-  - `kpis_monthly` filtrado por `activeBrand` + periodo actual (ej: "ABR-2026")
-- Calcula internamente: ventasNetas, costos (suma de todos los campos de costo), utilidad, margen
-- Retorna `{ metrics, kpis, isLoading }`
-- El periodo se genera dinámicamente con mes en español abreviado uppercase + año
+### Detailed steps
 
-### 2. Reescribir `src/pages/Dashboard.tsx`
-Reemplazar todo el contenido actual. 4 secciones:
+#### Step 1 — Fix build errors (3 files)
+The `{ [field]: value }` pattern produces `{ [x: string]: unknown }` which the strict Supabase types reject. Fix by casting to `as any` in three places:
+- `src/hooks/useSupabaseData.ts` line 156: `.update({ [field]: value } as any)`
+- `src/hooks/useObjetivos.ts` line 176: `.update({ [field]: value } as any)`
+- `src/pages/Lives.tsx` line 125: `.update({ ... } as any)`
 
-**Sección 1 — Hero Utilidad MTD**: Card full-width con utilidad total del mes, color por margen (verde >=20, amarillo >=14, rojo <14), grid 4 cols (Ventas Brutas, Gasto Ads, Costos Op, Utilidad), barra progreso meta 20%.
+#### Step 2 — Remove pages from sidebar and router
+- **AppSidebar.tsx**: Remove nav items for "Creativos & Pauta" (`/creativos`), "Orgánico Social" (`/organico`), and "KPIs Financieros" (`/kpis`)
+- **App.tsx**: Remove routes for `/creativos`, `/organico`, `/kpis`. Remove imports for CreativosYPauta, OrganicoSocial, KPIsFinancieros
 
-**Sección 2 — Tabla Objetivos por Canal**: Lee kpis con slugs `ventas_meta`, `ventas_tiktok_ads`, etc. Mapea cada slug a un canal en daily_metrics para calcular Actual MTD. Columnas: Canal, Meta Mes, Actual MTD, % Avance, Semáforo (w-2 h-2 rounded-full), Tendencia (↑↓→). Fila TOTAL. Resumen semáforos.
+#### Step 3 — Merge Finanzas + KPIs into one page
+- Rewrite `Finanzas.tsx` to have two tabs: "Simulador de Márgenes" (current Finanzas content) and "KPIs Financieros" (current KPIs content)
+- Delete `KPIsFinancieros.tsx` or leave unused
 
-**Sección 3 — Gráficas (lg:grid-cols-5)**: LineChart ventas vs utilidad por día con tabs 7D/30D/MTD. PieChart donut mix por canal con top 5, total al centro.
+#### Step 4 — Triple Whale integration setup
+- Add a new section in `Configuracion.tsx` for "Sincronización de Datos"
+- Show a card explaining Triple Whale connection with a button to configure API key
+- Create an edge function `supabase/functions/sync-triple-whale/index.ts` that:
+  - Reads Triple Whale API key from secrets
+  - Fetches daily sales data (Meta, TikTok Ads, GMV Max, Lives, Google)
+  - Upserts into `daily_metrics` table
+- Use the `add_secret` tool to request the Triple Whale API key from the user
+- Add a manual "Sync Now" button + show last sync timestamp
+- The edge function can be scheduled via pg_cron for daily auto-sync
 
-**Sección 4 — Top Canales Hoy + Alertas (lg:grid-cols-2)**: 3 mini cards de canales con más ventas del último día. Lista de hasta 5 alertas automáticas (margen crítico, canales cayendo, canales excepcionales).
-
-### 3. Migración SQL — Seed kpis_monthly ABR-2025
-Insertar vía migration tool:
-- Feel Ink: ventas_meta $450K, ventas_tiktok_ads $120K, ventas_gmv $250K, ventas_lives $160K, ventas_ml $100K, ventas_google $60K, ventas_email $20K, margen 20%
-- Skinglow: ventas_meta $600K, ventas_gmv $120K, ventas_lives 20, ventas_ml $80K, ventas_google $60K, ventas_email $30K, margen 20%
-- Con `ON CONFLICT DO NOTHING` para idempotencia (unique on brand+periodo+kpi_slug)
-
-### 4. Insert daily_metrics — 3 días ejemplo abril
-Insertar vía insert tool 3 días (1-3 abril) para ambas marcas con 7 canales cada uno. Cantidades realistas proporcionales a los targets mensuales.
-
-## Notas técnicas
-- El mapeo kpi_slug → canal: `ventas_meta` → `Meta`, `ventas_tiktok_ads` → `TikTok Ads`, `ventas_gmv` → `GMV MAX`, `ventas_lives` → `Lives`, `ventas_ml` → `Mercado Libre`, `ventas_google` → `Google`, `ventas_email` → `Email`
-- Tendencia: compara sum(ventas_brutas) últimos 7 días vs 7 previos del mismo canal. >5% = ↑, <-5% = ↓, else →
-- No se modifica ningún otro archivo
-- Si no hay datos: muestra "$0" y "Sin datos"
+### Technical notes
+- Triple Whale API provides unified ecommerce analytics across Meta, TikTok, Google channels
+- The sync function will map Triple Whale channel data to existing `daily_metrics` canal values
+- Will ask user for API key before implementing the sync function
 
