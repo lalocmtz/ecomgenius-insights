@@ -8,11 +8,8 @@ import { useRealtimeSync } from "@/hooks/useSupabaseData";
 import Dashboard from "./pages/Dashboard";
 import Lives from "./pages/Lives";
 import Finanzas from "./pages/Finanzas";
-import KPIsFinancieros from "./pages/KPIsFinancieros";
 import AgentesIA from "./pages/AgentesIA";
 import Ventas from "./pages/Ventas";
-import CreativosYPauta from "./pages/CreativosYPauta";
-import OrganicoSocial from "./pages/OrganicoSocial";
 import Objetivos from "./pages/Objetivos";
 import Configuracion from "./pages/Configuracion";
 import NotFound from "./pages/NotFound";
@@ -27,12 +24,8 @@ function AppContent() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/ventas" element={<Ventas />} />
         <Route path="/lives" element={<Lives />} />
-        <Route path="/creativos" element={<CreativosYPauta />} />
-        <Route path="/organico" element={<OrganicoSocial />} />
         <Route path="/finanzas" element={<Finanzas />} />
-        <Route path="/kpis" element={<KPIsFinancieros />} />
         <Route path="/objetivos" element={<Objetivos />} />
-        
         <Route path="/agentes" element={<AgentesIA />} />
         <Route path="/configuracion" element={<Configuracion />} />
         <Route path="*" element={<NotFound />} />
