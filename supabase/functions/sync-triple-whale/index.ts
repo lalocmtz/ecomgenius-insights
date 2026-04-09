@@ -6,31 +6,23 @@ const corsHeaders = {
 };
 
 const BRANDS = [
-  {
-    brand: "feel_ink",
-    shopDomain: "p9wgk9-d0.myshopify.com",
-    apiKeyEnv: "TRIPLE_WHALE_API_KEY_FEELINK",
-  },
-  {
-    brand: "skinglow",
-    shopDomain: "713524-04.myshopify.com",
-    apiKeyEnv: "TRIPLE_WHALE_API_KEY_SKINGLOW",
-  },
+  { brand: "feel_ink", shopDomain: "p9wgk9-d0.myshopify.com", apiKeyEnv: "TRIPLE_WHALE_API_KEY_FEELINK" },
+  { brand: "skinglow", shopDomain: "713524-04.myshopify.com", apiKeyEnv: "TRIPLE_WHALE_API_KEY_SKINGLOW" },
 ];
 
-const channelMap: Record<string, string> = {
-  facebook: "Meta",
-  "facebook-ads": "Meta",
-  facebookads: "Meta",
-  meta: "Meta",
-  google: "Google",
-  "google-ads": "Google",
-  googleads: "Google",
-  tiktok: "TikTok Ads",
-  "tiktok-ads": "TikTok Ads",
-  tiktokads: "TikTok Ads",
-  snapchat: "Snapchat",
-  pinterest: "Pinterest",
+// Map TW metricId → { canal, field }
+const METRIC_MAP: Record<string, { canal: string; field: "ventas_brutas" | "anuncios" | "pedidos" }> = {
+  // Meta (Facebook Ads)
+  facebookConversionValue: { canal: "Meta", field: "ventas_brutas" },
+  fb_ads_spend: { canal: "Meta", field: "anuncios" },
+  facebookPurchases: { canal: "Meta", field: "pedidos" },
+  // Google Ads
+  googleConversionValue: { canal: "Google", field: "ventas_brutas" },
+  ga_adCost: { canal: "Google", field: "anuncios" },
+  ga_all_transactions_adGroup: { canal: "Google", field: "pedidos" },
+  // Shopify totals → canal "Shopify"
+  totalSales: { canal: "Shopify", field: "ventas_brutas" },
+  totalOrders: { canal: "Shopify", field: "pedidos" },
 };
 
 Deno.serve(async (req: Request) => {
@@ -39,9 +31,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     const body = await req.json().catch(() => ({}));
     const now = new Date();
@@ -49,7 +39,7 @@ Deno.serve(async (req: Request) => {
     yesterday.setDate(yesterday.getDate() - 1);
     const startDate = body.start || yesterday.toISOString().split("T")[0];
     const endDate = body.end || startDate;
-    const targetBrand = body.brand; // optional: sync only one brand
+    const targetBrand = body.brand;
 
     const results: any[] = [];
 
@@ -62,28 +52,11 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Validate API key
-      const meRes = await fetch("https://api.triplewhale.com/api/v2/users/api-keys/me", {
-        headers: { "x-api-key": twApiKey },
-      });
-      if (!meRes.ok) {
-        results.push({ brand, error: `API key invalid: ${meRes.status}` });
-        continue;
-      }
-
       // Fetch summary data
-      const twBody = {
-        shopDomain,
-        period: { start: startDate, end: endDate },
-        todayHour: 23,
-      };
-
-      console.log(`[${brand}] Requesting TW:`, JSON.stringify(twBody));
-
       const twRes = await fetch("https://api.triplewhale.com/api/v2/summary-page/get-data", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": twApiKey },
-        body: JSON.stringify(twBody),
+        body: JSON.stringify({ shopDomain, period: { start: startDate, end: endDate }, todayHour: 23 }),
       });
 
       if (!twRes.ok) {
@@ -93,73 +66,50 @@ Deno.serve(async (req: Request) => {
       }
 
       const twData = await twRes.json();
-      console.log(`[${brand}] TW metrics count:`, Array.isArray(twData.metrics) ? twData.metrics.length : 'not array');
-      
-      // Log all metric IDs and their services
-      if (Array.isArray(twData.metrics)) {
-        for (const m of twData.metrics) {
-          console.log(`[${brand}] metric: ${m.metricId} | services: ${JSON.stringify(m.services)} | value: ${JSON.stringify(m.values?.current)} | serviceBreakdown: ${JSON.stringify(m.serviceBreakdown || m.breakdown || m.perService)?.substring(0, 300)}`);
-        }
+      const metrics = twData.metrics;
+
+      if (!Array.isArray(metrics)) {
+        results.push({ brand, error: "No metrics array in response", keys: Object.keys(twData || {}) });
+        continue;
       }
 
-      // Parse metrics array - TW summary-page returns metrics as array
-      // Each metric: { metricId, services[], values: { current }, serviceBreakdown? }
-      const channelData: Record<string, { revenue: number; spend: number; orders: number }> = {};
+      // Build channel data from known metrics
+      const channelData: Record<string, { ventas_brutas: number; anuncios: number; pedidos: number }> = {};
 
-      if (Array.isArray(twData.metrics)) {
-        for (const metric of twData.metrics) {
-          const id = metric.metricId;
-          const services = metric.services || [];
-          const value = metric.values?.current || 0;
-
-          // Map metric to our fields
-          for (const svc of services) {
-            const canal = channelMap[svc.toLowerCase()];
-            if (!canal) continue;
-            if (!channelData[canal]) channelData[canal] = { revenue: 0, spend: 0, orders: 0 };
-
-            if (id === "totalSales" || id === "pixelRevenue" || id === "revenue") {
-              channelData[canal].revenue = value;
-            } else if (id === "adSpend" || id === "spend" || id === "totalSpend") {
-              channelData[canal].spend = value;
-            } else if (id === "totalOrders" || id === "orders" || id === "purchases") {
-              channelData[canal].orders = value;
-            }
-          }
-        }
+      for (const m of metrics) {
+        const mapping = METRIC_MAP[m.metricId];
+        if (!mapping) continue;
+        const value = m.values?.current || 0;
+        if (!channelData[mapping.canal]) channelData[mapping.canal] = { ventas_brutas: 0, anuncios: 0, pedidos: 0 };
+        channelData[mapping.canal][mapping.field] = value;
       }
 
-      const upsertRows: any[] = [];
-      for (const [canal, data] of Object.entries(channelData)) {
-        if (data.revenue > 0 || data.spend > 0 || data.orders > 0) {
-          upsertRows.push({ brand, date: startDate, canal, ventas_brutas: data.revenue, pedidos: data.orders, anuncios: data.spend, source: "triple_whale" });
-        }
-      }
+      console.log(`[${brand}] Parsed channels:`, JSON.stringify(channelData));
+
       // Upsert to daily_metrics
       let upserted = 0;
-      for (const row of upsertRows) {
+      for (const [canal, data] of Object.entries(channelData)) {
+        if (data.ventas_brutas === 0 && data.anuncios === 0 && data.pedidos === 0) continue;
+
         const { data: existing } = await supabase
           .from("daily_metrics")
           .select("id")
-          .eq("brand", row.brand)
-          .eq("date", row.date)
-          .eq("canal", row.canal)
+          .eq("brand", brand)
+          .eq("date", startDate)
+          .eq("canal", canal)
           .maybeSingle();
 
+        const row = { ventas_brutas: data.ventas_brutas, pedidos: data.pedidos, anuncios: data.anuncios, source: "triple_whale" };
+
         if (existing) {
-          await supabase.from("daily_metrics").update({
-            ventas_brutas: row.ventas_brutas,
-            pedidos: row.pedidos,
-            anuncios: row.anuncios,
-            source: "triple_whale",
-          }).eq("id", existing.id);
+          await supabase.from("daily_metrics").update(row).eq("id", existing.id);
         } else {
-          await supabase.from("daily_metrics").insert(row);
+          await supabase.from("daily_metrics").insert({ ...row, brand, date: startDate, canal });
         }
         upserted++;
       }
 
-      results.push({ brand, synced: upserted, date: startDate, rawKeys: Object.keys(twData || {}) });
+      results.push({ brand, synced: upserted, date: startDate, channels: Object.keys(channelData) });
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
@@ -168,8 +118,7 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     console.error("sync-triple-whale error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
