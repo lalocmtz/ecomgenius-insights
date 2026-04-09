@@ -173,7 +173,7 @@ export function useUpdateObjetivo() {
     mutationFn: async ({ id, field, value }: { id: string; field: string; value: unknown }) => {
       const { error } = await supabase
         .from('objetivos')
-        .update({ [field]: value })
+        .update({ [field]: value } as any)
         .eq('id', id);
       if (error) throw error;
     },

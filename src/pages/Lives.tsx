@@ -133,7 +133,7 @@ export default function Lives() {
         envio_comision_tt: costs.comisionTT,
         iva_ads: costs.ivaAds,
         impuestos: costs.retenciones,
-      }).eq('id', id);
+      } as any).eq('id', id);
       if (error) toast.error('Error: ' + error.message);
       else { toast.success('✓ Guardado'); queryClient.invalidateQueries({ queryKey: ['lives'] }); }
     } else {
