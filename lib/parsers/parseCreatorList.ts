@@ -1,6 +1,10 @@
-import * as XLSX from "xlsx";
-import { parseMXNValue } from "@/lib/format";
-import { extractDateRange, toNumber, toStr } from "./utils";
+import {
+  readSheet,
+  toStr,
+  toMXN,
+  toInt,
+  toNumber,
+} from "./utils";
 
 interface CreatorRow {
   creator_name: string;
@@ -15,52 +19,50 @@ interface CreatorRow {
   live_streams: number;
   estimated_commission: number;
   samples_sent: number;
-  period_start: string;
-  period_end: string;
 }
 
+/**
+ * Parse Transaction_Analysis_Creator_List XLSX.
+ *
+ * Structure:
+ *   Row 0: Headers in Spanish, ALL IN ROW 0 (NOT row 2!):
+ *     Creator name, GMV atribuido a afiliados, Reembolsos,
+ *     Pedidos atribuidos, Ventas de articulos atribuidas a afiliados,
+ *     Articulos reembolsados, AOV, Prom. diario productos vendidos,
+ *     Videos, Transmisiones LIVE, Comision estimada, Muestras enviadas
+ *   Row 1+: Data. Values with "MX$" prefix.
+ */
 export function parseCreatorList(buffer: Buffer): CreatorRow[] {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const raw = readSheet(buffer);
 
-  const dateRange = extractDateRange(raw);
-  const periodStart = dateRange?.periodStart ?? "";
-  const periodEnd = dateRange?.periodEnd ?? "";
+  // Row 0 is headers, data starts at row 1
+  const headers = raw[0];
+  if (!headers) throw new Error("Could not find headers in creator list file");
 
-  // Header at row index 2
-  const headers = raw[2];
-  if (!headers) throw new Error("Could not find headers at row index 2");
-
-  const dataRows = raw.slice(3);
+  const dataRows = raw.slice(1);
   const results: CreatorRow[] = [];
-
-  const parse = (val: unknown) => {
-    if (typeof val === "number") return val;
-    return parseMXNValue(toStr(val));
-  };
 
   for (const row of dataRows) {
     if (!row || !row[0]) continue;
 
     const creatorName = toStr(row[0]);
     if (!creatorName) continue;
+    // Skip if it looks like a header row
+    if (creatorName.toLowerCase() === "creator name") continue;
 
     results.push({
       creator_name: creatorName,
-      gmv: parse(row[1]),
-      refunds: parse(row[2]),
-      attributed_orders: parse(row[3]),
-      attributed_items_sold: parse(row[4]),
-      refunded_items: parse(row[5]),
-      aov: parse(row[6]),
-      daily_avg_products_sold: parse(row[7]),
-      videos: parse(row[8]),
-      live_streams: parse(row[9]),
-      estimated_commission: parse(row[10]),
-      samples_sent: parse(row[11]),
-      period_start: periodStart,
-      period_end: periodEnd,
+      gmv: toMXN(row[1]),
+      refunds: toMXN(row[2]),
+      attributed_orders: toInt(row[3]),
+      attributed_items_sold: toInt(row[4]),
+      refunded_items: toInt(row[5]),
+      aov: toMXN(row[6]),
+      daily_avg_products_sold: toNumber(row[7]),
+      videos: toInt(row[8]),
+      live_streams: toInt(row[9]),
+      estimated_commission: toMXN(row[10]),
+      samples_sent: toInt(row[11]),
     });
   }
 

@@ -1,5 +1,9 @@
-import * as XLSX from "xlsx";
-import { toNumber, toStr } from "./utils";
+import {
+  readSheet,
+  parseDate,
+  toNumber,
+  toInt,
+} from "./utils";
 
 interface VideoPerformanceRow {
   date: string;
@@ -12,14 +16,21 @@ interface VideoPerformanceRow {
   product_impressions: number;
 }
 
+/**
+ * Parse Video Performance Core Stats XLSX.
+ *
+ * Structure:
+ *   Row 0: ["[Rango de fechas]: 2026-03-01 ~ 2026-04-10\n"]
+ *   Row 1: empty
+ *   Row 2: Headers: Hora, Valor bruto (video) (MX$), VV, GPM (MX$), ...
+ *   Row 3+: Data. "Hora" is a date string. Values are plain numbers.
+ */
 export function parseVideoPerformance(buffer: Buffer): VideoPerformanceRow[] {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const raw = readSheet(buffer);
 
-  // Header at row index 2
+  // Headers at row 2
   const headers = raw[2];
-  if (!headers) throw new Error("Could not find headers at row index 2");
+  if (!headers) throw new Error("Could not find headers at row index 2 in video performance file");
 
   const dataRows = raw.slice(3);
   const results: VideoPerformanceRow[] = [];
@@ -27,31 +38,18 @@ export function parseVideoPerformance(buffer: Buffer): VideoPerformanceRow[] {
   for (const row of dataRows) {
     if (!row || !row[0]) continue;
 
-    const dateVal = row[0];
-    let dateStr: string;
-
-    if (typeof dateVal === "number") {
-      const parsed = XLSX.SSF.parse_date_code(dateVal);
-      dateStr = `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
-    } else {
-      dateStr = toStr(dateVal);
-      const m = dateStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-      if (m) {
-        dateStr = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-      }
-    }
-
-    if (!/\d{4}-\d{2}-\d{2}/.test(dateStr)) continue;
+    const dateStr = parseDate(row[0]);
+    if (!dateStr) continue;
 
     results.push({
       date: dateStr,
       gmv_video: toNumber(row[1]),
-      video_views: toNumber(row[2]),
+      video_views: toInt(row[2]),
       gpm: toNumber(row[3]),
-      sku_orders: toNumber(row[4]),
-      unique_customers: toNumber(row[5]),
-      product_viewers: toNumber(row[6]),
-      product_impressions: toNumber(row[7]),
+      sku_orders: toInt(row[4]),
+      unique_customers: toInt(row[5]),
+      product_viewers: toInt(row[6]),
+      product_impressions: toInt(row[7]),
     });
   }
 

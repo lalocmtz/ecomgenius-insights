@@ -1,5 +1,10 @@
-import * as XLSX from "xlsx";
-import { toNumber, toStr } from "./utils";
+import {
+  readSheet,
+  parseDate,
+  toInt,
+  toNumber,
+  toPercent,
+} from "./utils";
 
 interface ProductTrafficRow {
   date: string;
@@ -10,16 +15,30 @@ interface ProductTrafficRow {
   add_to_cart_clicks: number;
   users_added_to_cart: number;
   customers: number;
+  sku_orders: number;
+  gmv: number;
+  gmv_content: number;
+  conversion_rate: number;
+  click_rate: number;
 }
 
+/**
+ * Parse Product Card Traffic Stats XLSX.
+ *
+ * Structure:
+ *   Row 0: ["[Rango de fechas]: 2026-04-10 ~ 2026-04-10\n"]
+ *   Row 1: empty
+ *   Row 2: Headers: Hora, Vistas, Espectadores, Clics unicos, Clics, ...
+ *   Row 3+: Data. "Hora" is a date string like "2026-04-10".
+ */
 export function parseProductTraffic(buffer: Buffer): ProductTrafficRow[] {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const raw = readSheet(buffer);
 
-  // Header at row index 2
+  // Headers at row 2
   const headers = raw[2];
-  if (!headers) throw new Error("Could not find headers at row index 2");
+  if (!headers) {
+    throw new Error("Could not find headers at row index 2 in product traffic file");
+  }
 
   const dataRows = raw.slice(3);
   const results: ProductTrafficRow[] = [];
@@ -27,31 +46,23 @@ export function parseProductTraffic(buffer: Buffer): ProductTrafficRow[] {
   for (const row of dataRows) {
     if (!row || !row[0]) continue;
 
-    const dateVal = row[0];
-    let dateStr: string;
-
-    if (typeof dateVal === "number") {
-      const parsed = XLSX.SSF.parse_date_code(dateVal);
-      dateStr = `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
-    } else {
-      dateStr = toStr(dateVal);
-      const m = dateStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-      if (m) {
-        dateStr = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-      }
-    }
-
-    if (!/\d{4}-\d{2}-\d{2}/.test(dateStr)) continue;
+    const dateStr = parseDate(row[0]);
+    if (!dateStr) continue;
 
     results.push({
       date: dateStr,
-      views: toNumber(row[1]),
-      unique_visitors: toNumber(row[2]),
-      unique_clicks: toNumber(row[3]),
-      clicks: toNumber(row[4]),
-      add_to_cart_clicks: toNumber(row[5]),
-      users_added_to_cart: toNumber(row[6]),
-      customers: toNumber(row[7]),
+      views: toInt(row[1]),
+      unique_visitors: toInt(row[2]),
+      unique_clicks: toInt(row[3]),
+      clicks: toInt(row[4]),
+      add_to_cart_clicks: toInt(row[5]),
+      users_added_to_cart: toInt(row[6]),
+      customers: toInt(row[7]),
+      sku_orders: toInt(row[8]),
+      gmv: toNumber(row[9]),
+      gmv_content: toNumber(row[10]),
+      conversion_rate: toPercent(row[11]),
+      click_rate: toPercent(row[12]),
     });
   }
 

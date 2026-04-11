@@ -1,5 +1,11 @@
-import * as XLSX from "xlsx";
-import { extractDateRange, toNumber, toStr } from "./utils";
+import {
+  readSheet,
+  findHeaderRow,
+  parseDate,
+  toNumber,
+  toPercent,
+  toInt,
+} from "./utils";
 
 interface OverviewRow {
   date: string;
@@ -15,18 +21,22 @@ interface OverviewRow {
   conversion_rate: number;
 }
 
+/**
+ * Parse Overview_My Business Performance XLSX.
+ *
+ * Structure:
+ *   Row 0: Summary headers (Spanish)
+ *   Row 1: Summary values
+ *   Row 2: empty
+ *   Row 3: ["Datos diarios"]
+ *   Row 4: Daily headers: Fecha, GMV, Reembolsos, ...
+ *   Row 5+: Daily data
+ */
 export function parseOverview(buffer: Buffer): OverviewRow[] {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const raw = readSheet(buffer);
 
-  // Daily data starts at row index 4 (0-indexed). Row 4 has daily headers.
-  // Headers: Fecha, GMV, Reembolsos, GMV con cofinanciacion, Articulos vendidos,
-  // Clientes unicos, Vistas de paginas, Visitas tienda, Pedido con SKU, Pedidos, Tasa de conversion
-  const dailyHeaderIdx = raw.findIndex((row) => {
-    const first = toStr(row?.[0]).toLowerCase();
-    return first === "fecha" || first.includes("fecha");
-  });
+  // Find the daily header row by looking for "Fecha"
+  const dailyHeaderIdx = findHeaderRow(raw, (v) => v === "fecha");
 
   if (dailyHeaderIdx === -1) {
     throw new Error(
@@ -40,36 +50,21 @@ export function parseOverview(buffer: Buffer): OverviewRow[] {
   for (const row of dataRows) {
     if (!row || !row[0]) continue;
 
-    const dateVal = row[0];
-    let dateStr: string;
-
-    if (typeof dateVal === "number") {
-      // Excel serial date
-      const parsed = XLSX.SSF.parse_date_code(dateVal);
-      dateStr = `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
-    } else {
-      dateStr = toStr(dateVal);
-      // Try to normalize date format
-      const m = dateStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-      if (m) {
-        dateStr = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-      }
-    }
-
-    if (!/\d{4}-\d{2}-\d{2}/.test(dateStr)) continue;
+    const dateStr = parseDate(row[0]);
+    if (!dateStr) continue;
 
     results.push({
       date: dateStr,
       gmv: toNumber(row[1]),
       refunds: toNumber(row[2]),
       gmv_with_cofunding: toNumber(row[3]),
-      items_sold: toNumber(row[4]),
-      unique_customers: toNumber(row[5]),
-      page_views: toNumber(row[6]),
-      store_visits: toNumber(row[7]),
-      sku_orders: toNumber(row[8]),
-      orders: toNumber(row[9]),
-      conversion_rate: toNumber(row[10]),
+      items_sold: toInt(row[4]),
+      unique_customers: toInt(row[5]),
+      page_views: toInt(row[6]),
+      store_visits: toInt(row[7]),
+      sku_orders: toInt(row[8]),
+      orders: toInt(row[9]),
+      conversion_rate: toPercent(row[10]),
     });
   }
 

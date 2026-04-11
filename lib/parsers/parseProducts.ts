@@ -1,5 +1,10 @@
-import * as XLSX from "xlsx";
-import { extractDateRange, toNumber, toStr } from "./utils";
+import {
+  readSheet,
+  extractDateRange,
+  toStr,
+  toMXN,
+  toInt,
+} from "./utils";
 
 interface ProductRow {
   sku_id: string;
@@ -14,18 +19,25 @@ interface ProductRow {
   period_end: string;
 }
 
+/**
+ * Parse product_list XLSX.
+ *
+ * Structure:
+ *   Row 0: ["2026-03-01 ~ 2026-04-10"] (date range)
+ *   Row 1: empty
+ *   Row 2: Headers: ID, Producto, Estado, GMV, Articulos vendidos, Pedidos, ...
+ *   Row 3+: Data. GMV values have "MX$" prefix like "MX$177,734.26".
+ */
 export function parseProducts(buffer: Buffer): ProductRow[] {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const raw = readSheet(buffer);
 
   const dateRange = extractDateRange(raw);
   const periodStart = dateRange?.periodStart ?? "";
   const periodEnd = dateRange?.periodEnd ?? "";
 
-  // Header at row index 2 (0-indexed)
+  // Headers at row 2
   const headers = raw[2];
-  if (!headers) throw new Error("Could not find headers at row index 2");
+  if (!headers) throw new Error("Could not find headers at row index 2 in products file");
 
   const dataRows = raw.slice(3);
   const results: ProductRow[] = [];
@@ -37,11 +49,11 @@ export function parseProducts(buffer: Buffer): ProductRow[] {
       sku_id: toStr(row[0]),
       name: toStr(row[1]),
       status: toStr(row[2]),
-      gmv: toNumber(row[3]),
-      items_sold: toNumber(row[4]),
-      orders: toNumber(row[5]),
-      gmv_store_tab: toNumber(row[6]),
-      items_sold_store_tab: toNumber(row[7]),
+      gmv: toMXN(row[3]),
+      items_sold: toInt(row[4]),
+      orders: toInt(row[5]),
+      gmv_store_tab: toMXN(row[6]),
+      items_sold_store_tab: toInt(row[7]),
       period_start: periodStart,
       period_end: periodEnd,
     });
