@@ -237,22 +237,22 @@ export default function CampaignsPage() {
           .from("product_campaigns")
           .select("*")
           .eq("brand_id", brandId)
-          .gte("period_start", from)
-          .lte("period_end", to)
+          .lte("period_start", to)
+          .gte("period_end", from)
           .order("cost", { ascending: false }),
         supabase
           .from("live_campaigns")
           .select("*")
           .eq("brand_id", brandId)
-          .gte("period_start", from)
-          .lte("period_end", to)
+          .lte("period_start", to)
+          .gte("period_end", from)
           .order("cost", { ascending: false }),
         supabase
           .from("creatives")
           .select("*")
           .eq("brand_id", brandId)
-          .gte("period_start", from)
-          .lte("period_end", to)
+          .lte("period_start", to)
+          .gte("period_end", from)
           .order("roi", { ascending: false }),
       ]);
 

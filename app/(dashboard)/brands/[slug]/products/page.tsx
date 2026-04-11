@@ -18,6 +18,7 @@ export default function ProductsPage({
   const { slug } = use(params);
   const { dateRange } = useDateRange();
 
+  const [brandId, setBrandId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [traffic, setTraffic] = useState<ProductTraffic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +27,20 @@ export default function ProductsPage({
   const to = format(dateRange.end, "yyyy-MM-dd");
 
   useEffect(() => {
+    async function fetchBrand() {
+      const { data } = await supabase
+        .from("brands")
+        .select("id")
+        .eq("slug", slug)
+        .single();
+      if (data) setBrandId(data.id);
+    }
+    fetchBrand();
+  }, [slug]);
+
+  useEffect(() => {
+    if (!brandId) return;
+
     async function fetchData() {
       setLoading(true);
 
@@ -33,14 +48,14 @@ export default function ProductsPage({
         supabase
           .from("products")
           .select("*")
-          .eq("brand_id", slug)
-          .gte("period_start", from)
-          .lte("period_end", to)
+          .eq("brand_id", brandId)
+          .lte("period_start", to)
+          .gte("period_end", from)
           .order("gmv", { ascending: false }),
         supabase
           .from("product_traffic")
           .select("*")
-          .eq("brand_id", slug)
+          .eq("brand_id", brandId)
           .gte("date", from)
           .lte("date", to)
           .order("date", { ascending: true }),
@@ -52,7 +67,7 @@ export default function ProductsPage({
     }
 
     fetchData();
-  }, [slug, from, to]);
+  }, [brandId, from, to]);
 
   const funnel = useMemo(() => {
     if (traffic.length === 0) return null;

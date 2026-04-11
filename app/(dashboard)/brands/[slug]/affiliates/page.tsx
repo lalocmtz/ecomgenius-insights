@@ -26,6 +26,7 @@ export default function AffiliatesPage({
   const { slug } = use(params);
   const { dateRange } = useDateRange();
 
+  const [brandId, setBrandId] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AffiliateMetrics[]>([]);
   const [creators, setCreators] = useState<Creator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,20 @@ export default function AffiliatesPage({
   const to = format(dateRange.end, "yyyy-MM-dd");
 
   useEffect(() => {
+    async function fetchBrand() {
+      const { data } = await supabase
+        .from("brands")
+        .select("id")
+        .eq("slug", slug)
+        .single();
+      if (data) setBrandId(data.id);
+    }
+    fetchBrand();
+  }, [slug]);
+
+  useEffect(() => {
+    if (!brandId) return;
+
     async function fetchData() {
       setLoading(true);
 
@@ -41,15 +56,15 @@ export default function AffiliatesPage({
         supabase
           .from("affiliate_metrics")
           .select("*")
-          .eq("brand_id", slug)
-          .gte("period_start", from)
-          .lte("period_end", to),
+          .eq("brand_id", brandId)
+          .lte("period_start", to)
+          .gte("period_end", from),
         supabase
           .from("creators")
           .select("*")
-          .eq("brand_id", slug)
-          .gte("period_start", from)
-          .lte("period_end", to)
+          .eq("brand_id", brandId)
+          .lte("period_start", to)
+          .gte("period_end", from)
           .order("gmv", { ascending: false }),
       ]);
 
@@ -59,7 +74,7 @@ export default function AffiliatesPage({
     }
 
     fetchData();
-  }, [slug, from, to]);
+  }, [brandId, from, to]);
 
   const summary = useMemo(() => {
     if (metrics.length === 0) {

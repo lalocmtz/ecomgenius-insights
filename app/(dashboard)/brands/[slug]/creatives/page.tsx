@@ -32,6 +32,7 @@ export default function CreativesPage({
   const { slug } = use(params);
   const { dateRange } = useDateRange();
 
+  const [brandId, setBrandId] = useState<string | null>(null);
   const [creatives, setCreatives] = useState<Creative[]>([]);
   const [videoPerf, setVideoPerf] = useState<VideoPerformance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,20 @@ export default function CreativesPage({
   const to = format(dateRange.end, "yyyy-MM-dd");
 
   useEffect(() => {
+    async function fetchBrand() {
+      const { data } = await supabase
+        .from("brands")
+        .select("id")
+        .eq("slug", slug)
+        .single();
+      if (data) setBrandId(data.id);
+    }
+    fetchBrand();
+  }, [slug]);
+
+  useEffect(() => {
+    if (!brandId) return;
+
     async function fetchData() {
       setLoading(true);
 
@@ -49,13 +64,13 @@ export default function CreativesPage({
         supabase
           .from("creatives")
           .select("*")
-          .eq("brand_id", slug)
-          .gte("period_start", from)
-          .lte("period_end", to),
+          .eq("brand_id", brandId)
+          .lte("period_start", to)
+          .gte("period_end", from),
         supabase
           .from("video_performance")
           .select("*")
-          .eq("brand_id", slug)
+          .eq("brand_id", brandId)
           .gte("date", from)
           .lte("date", to)
           .order("date", { ascending: true }),
@@ -67,7 +82,7 @@ export default function CreativesPage({
     }
 
     fetchData();
-  }, [slug, from, to]);
+  }, [brandId, from, to]);
 
   const kpis = useMemo(() => {
     if (creatives.length === 0) {
