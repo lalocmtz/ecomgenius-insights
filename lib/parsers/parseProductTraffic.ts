@@ -2,8 +2,6 @@ import {
   readSheet,
   parseDate,
   toInt,
-  toNumber,
-  toPercent,
 } from "./utils";
 
 interface ProductTrafficRow {
@@ -15,11 +13,6 @@ interface ProductTrafficRow {
   add_to_cart_clicks: number;
   users_added_to_cart: number;
   customers: number;
-  sku_orders: number;
-  gmv: number;
-  gmv_content: number;
-  conversion_rate: number;
-  click_rate: number;
 }
 
 /**
@@ -58,11 +51,6 @@ export function parseProductTraffic(buffer: Buffer): ProductTrafficRow[] {
       add_to_cart_clicks: toInt(row[5]),
       users_added_to_cart: toInt(row[6]),
       customers: toInt(row[7]),
-      sku_orders: toInt(row[8]),
-      gmv: toNumber(row[9]),
-      gmv_content: toNumber(row[10]),
-      conversion_rate: toPercent(row[11]),
-      click_rate: toPercent(row[12]),
     });
   }
 

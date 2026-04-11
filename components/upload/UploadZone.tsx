@@ -127,7 +127,9 @@ export function UploadZone({ brandId }: UploadZoneProps) {
           );
           toast.success(`${entry.file.name}: ${data.rowsProcessed} filas`);
         } else {
-          const errMsg = data.errors?.join(", ") || data.error || "Error";
+          const errMsg = data.errors?.map((e: { message?: string } | string) =>
+            typeof e === "string" ? e : e.message || "Error"
+          ).join(", ") || data.error || "Error";
           setFiles((prev) =>
             prev.map((f, idx) =>
               idx === i

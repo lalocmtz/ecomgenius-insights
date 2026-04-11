@@ -17,7 +17,6 @@ interface ProductCampaignRow {
   gross_revenue: number;
   roi: number;
   currency: string;
-  current_optimizations: string;
 }
 
 /**
@@ -59,7 +58,6 @@ export function parseProductCampaigns(buffer: Buffer): ProductCampaignRow[] {
       gross_revenue: toNumber(row[8]),
       roi: toNumber(row[9]),
       currency: toStr(row[10]) || "MXN",
-      current_optimizations: toStr(row[11]),
     });
   }
 

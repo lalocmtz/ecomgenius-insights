@@ -9,7 +9,6 @@ interface LiveCampaignRow {
   campaign_id: string;
   campaign_name: string;
   cost: number;
-  roi_protection: string;
   net_cost: number;
   gross_revenue: number;
   roi: number;
@@ -18,16 +17,10 @@ interface LiveCampaignRow {
   live_views: number;
   cost_per_live_view: number;
   live_views_10s: number;
-  cost_per_10s_live_view: number;
   avg_live_duration: number;
   live_follows: number;
   current_budget: number;
   currency: string;
-  current_optimizations: string;
-  // Livestream-specific fields (may be empty for campaign-level data)
-  live_name: string;
-  launched_time: string;
-  status: string;
 }
 
 /**
@@ -72,7 +65,6 @@ export function parseLiveCampaigns(buffer: Buffer): LiveCampaignRow[] {
         campaign_id: campaignId,
         campaign_name: toStr(row[3]),
         cost: toNumber(row[5]),
-        roi_protection: "",
         net_cost: toNumber(row[6]),
         gross_revenue: toNumber(row[10]),
         roi: toNumber(row[12]),
@@ -81,15 +73,10 @@ export function parseLiveCampaigns(buffer: Buffer): LiveCampaignRow[] {
         live_views: toInt(row[13]),
         cost_per_live_view: toNumber(row[14]),
         live_views_10s: toInt(row[15]),
-        cost_per_10s_live_view: 0,
         avg_live_duration: toNumber(row[16]),
         live_follows: toInt(row[17]),
         current_budget: 0,
         currency: toStr(row[18]) || "MXN",
-        current_optimizations: "",
-        live_name: toStr(row[0]),
-        launched_time: toStr(row[1]),
-        status: toStr(row[2]),
       });
     } else {
       // Live campaign data format
@@ -100,7 +87,6 @@ export function parseLiveCampaigns(buffer: Buffer): LiveCampaignRow[] {
         campaign_id: campaignId,
         campaign_name: toStr(row[1]),
         cost: toNumber(row[2]),
-        roi_protection: toStr(row[3]),
         net_cost: toNumber(row[4]),
         gross_revenue: toNumber(row[5]),
         roi: toNumber(row[6]),
@@ -110,15 +96,10 @@ export function parseLiveCampaigns(buffer: Buffer): LiveCampaignRow[] {
         // row[10] is duplicate "Gross revenue", skip it
         cost_per_live_view: toNumber(row[11]),
         live_views_10s: toInt(row[12]),
-        cost_per_10s_live_view: toNumber(row[13]),
         avg_live_duration: toNumber(row[14]),
         live_follows: toInt(row[15]),
         current_budget: toNumber(row[16]),
         currency: toStr(row[17]) || "MXN",
-        current_optimizations: toStr(row[18]),
-        live_name: "",
-        launched_time: "",
-        status: "",
       });
     }
   }

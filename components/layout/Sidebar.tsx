@@ -24,11 +24,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Overview", href: "", icon: Home },
-  { label: "Campanas", href: "/campanas", icon: BarChart3 },
-  { label: "Creativos", href: "/creativos", icon: Play },
-  { label: "Afiliados", href: "/afiliados", icon: Users },
-  { label: "Productos", href: "/productos", icon: Package },
-  { label: "Calculadora", href: "/calculadora", icon: Calculator },
+  { label: "Campanas", href: "/campaigns", icon: BarChart3 },
+  { label: "Creativos", href: "/creatives", icon: Play },
+  { label: "Afiliados", href: "/affiliates", icon: Users },
+  { label: "Productos", href: "/products", icon: Package },
+  { label: "Calculadora", href: "/calculator", icon: Calculator },
   { label: "Subir archivos", href: "/upload", icon: Upload },
   { label: "Reporte AI", href: "/report", icon: Sparkles },
   { label: "Configuracion", href: "/settings", icon: Settings },
