@@ -65,8 +65,7 @@ export default function CreativesPage({
           .from("creatives")
           .select("*")
           .eq("brand_id", brandId)
-          .lte("period_start", to)
-          .gte("period_end", from),
+          .or(`and(period_start.lte.${to},period_end.gte.${from}),period_start.is.null`),
         supabase
           .from("video_performance")
           .select("*")

@@ -237,22 +237,19 @@ export default function CampaignsPage() {
           .from("product_campaigns")
           .select("*")
           .eq("brand_id", brandId)
-          .lte("period_start", to)
-          .gte("period_end", from)
+          .or(`and(period_start.lte.${to},period_end.gte.${from}),period_start.is.null`)
           .order("cost", { ascending: false }),
         supabase
           .from("live_campaigns")
           .select("*")
           .eq("brand_id", brandId)
-          .lte("period_start", to)
-          .gte("period_end", from)
+          .or(`and(period_start.lte.${to},period_end.gte.${from}),period_start.is.null`)
           .order("cost", { ascending: false }),
         supabase
           .from("creatives")
           .select("*")
           .eq("brand_id", brandId)
-          .lte("period_start", to)
-          .gte("period_end", from)
+          .or(`and(period_start.lte.${to},period_end.gte.${from}),period_start.is.null`)
           .order("roi", { ascending: false }),
       ]);
 

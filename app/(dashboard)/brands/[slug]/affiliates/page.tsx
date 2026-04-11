@@ -57,14 +57,12 @@ export default function AffiliatesPage({
           .from("affiliate_metrics")
           .select("*")
           .eq("brand_id", brandId)
-          .lte("period_start", to)
-          .gte("period_end", from),
+          .or(`and(period_start.lte.${to},period_end.gte.${from}),period_start.is.null`),
         supabase
           .from("creators")
           .select("*")
           .eq("brand_id", brandId)
-          .lte("period_start", to)
-          .gte("period_end", from)
+          .or(`and(period_start.lte.${to},period_end.gte.${from}),period_start.is.null`)
           .order("gmv", { ascending: false }),
       ]);
 

@@ -137,18 +137,17 @@ export default function BrandOverviewPage({ params }: PageProps) {
             .from("product_campaigns")
             .select("*")
             .eq("brand_id", brandId)
-            .gte("period_start", startStr)
-            .lte("period_end", endStr),
+            .or(`and(period_start.lte.${endStr},period_end.gte.${startStr}),period_start.is.null`),
           supabase
             .from("live_campaigns")
             .select("*")
             .eq("brand_id", brandId)
-            .gte("period_start", startStr)
-            .lte("period_end", endStr),
+            .or(`and(period_start.lte.${endStr},period_end.gte.${startStr}),period_start.is.null`),
           supabase
             .from("products")
             .select("*")
             .eq("brand_id", brandId)
+            .or(`and(period_start.lte.${endStr},period_end.gte.${startStr}),period_start.is.null`)
             .order("gmv", { ascending: false })
             .limit(5),
         ]);

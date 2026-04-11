@@ -32,9 +32,9 @@ export function extractDateRange(
 export function extractPeriodFromFilename(
   filename: string
 ): { periodStart: string; periodEnd: string } | null {
-  // "2026-03-01 - 2026-04-10" or "2026-03-01 ~ 2026-04-10"
+  // "2026-03-01 - 2026-04-10" or "2026-03-01 00 ~ 2026-04-10 23"
   const m1 = filename.match(
-    /(\d{4}-\d{2}-\d{2})\s*[-~]\s*(\d{4}-\d{2}-\d{2})/
+    /(\d{4}-\d{2}-\d{2})(?:\s+\d{2})?\s*[-~]\s*(\d{4}-\d{2}-\d{2})/
   );
   if (m1) return { periodStart: m1[1], periodEnd: m1[2] };
 
