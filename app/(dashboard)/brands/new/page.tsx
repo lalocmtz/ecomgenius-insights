@@ -24,6 +24,20 @@ export default function NewBrandPage() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
+    // Check if slug already exists
+    const { data: existing } = await supabase
+      .from("brands")
+      .select("id,slug")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (existing) {
+      setSaving(false);
+      toast.success(`La marca "${name}" ya existe, redirigiendo...`);
+      router.push(`/brands/${existing.slug}/settings`);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("brands")
       .insert({
