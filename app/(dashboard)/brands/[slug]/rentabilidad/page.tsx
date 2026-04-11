@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { GastosFijosTab } from "@/components/rentabilidad/GastosFijosTab";
 import { PLRealTab } from "@/components/rentabilidad/PLRealTab";
 import { AsesorIATab } from "@/components/rentabilidad/AsesorIATab";
+import { SimuladorTab } from "@/components/rentabilidad/SimuladorTab";
 import type { Brand } from "@/types";
 
 interface PageProps {
@@ -61,6 +62,7 @@ export default function RentabilidadPage({ params }: PageProps) {
         <TabsList variant="line" className="border-b border-[#30363d] pb-px">
           <TabsTrigger value="pl">P&amp;L Real</TabsTrigger>
           <TabsTrigger value="gastos">Gastos Fijos</TabsTrigger>
+          <TabsTrigger value="simulador">Simulador</TabsTrigger>
           <TabsTrigger value="asesor">Asesor IA</TabsTrigger>
         </TabsList>
 
@@ -70,6 +72,10 @@ export default function RentabilidadPage({ params }: PageProps) {
 
         <TabsContent value="gastos" className="pt-6">
           <GastosFijosTab brandId={brand.id} brand={brand} />
+        </TabsContent>
+
+        <TabsContent value="simulador" className="pt-6">
+          <SimuladorTab brand={brand} />
         </TabsContent>
 
         <TabsContent value="asesor" className="pt-6">
