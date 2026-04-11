@@ -10,7 +10,7 @@ import {
   Package,
   Calculator,
   Upload,
-  Sparkles,
+  TrendingUp,
   Settings,
 } from "lucide-react";
 import { BrandSwitcher } from "./BrandSwitcher";
@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
   { label: "Productos", href: "/products", icon: Package },
   { label: "Calculadora", href: "/calculator", icon: Calculator },
   { label: "Subir archivos", href: "/upload", icon: Upload },
-  { label: "Reporte AI", href: "/report", icon: Sparkles },
+  { label: "Rentabilidad", href: "/rentabilidad", icon: TrendingUp },
   { label: "Configuracion", href: "/settings", icon: Settings },
 ];
 

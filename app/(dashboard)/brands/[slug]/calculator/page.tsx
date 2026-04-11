@@ -1,50 +1,74 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RentabilityCalculator } from "@/components/calculator/RentabilityCalculator";
-import { AffiliateOfferCalculator } from "@/components/calculator/AffiliateOfferCalculator";
+import { GMVMaxCalculator } from "@/components/calculator/GMVMaxCalculator";
+import { LivesCalculator } from "@/components/calculator/LivesCalculator";
+import { supabase } from "@/lib/supabase/client";
 
-export const metadata = {
-  title: "Calculadora de Rentabilidad - EcomGenius",
-};
+interface BrandDefaults {
+  comisionTT: number;
+  guiasPct: number;
+  costoPct: number;
+  ivaAdsPct: number;
+}
 
-export default async function CalculatorPage({
+export default function CalculatorPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug } = use(params);
+  const [brandName, setBrandName] = useState(slug);
+  const [defaults, setDefaults] = useState<BrandDefaults | undefined>();
+
+  useEffect(() => {
+    async function loadBrand() {
+      const { data } = await supabase
+        .from("brands")
+        .select("name, commission_tiktok, commission_affiliates, product_cost_pct, iva_ads_pct")
+        .eq("slug", slug)
+        .single();
+
+      if (data) {
+        setBrandName(data.name);
+        setDefaults({
+          comisionTT: data.commission_tiktok ?? 8,
+          guiasPct: data.commission_affiliates ?? 6,
+          costoPct: data.product_cost_pct ?? 12,
+          ivaAdsPct: data.iva_ads_pct ?? 16,
+        });
+      }
+    }
+    loadBrand();
+  }, [slug]);
 
   return (
-    <div className="min-h-screen bg-[#0d1117] p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[#e6edf3]">
-            Calculadora de Rentabilidad
-          </h1>
-          <p className="text-sm text-[#8b949e] mt-1">
-            Analiza la rentabilidad de tus ventas en TikTok Shop para{" "}
-            <span className="text-[#f97316] font-medium">{slug}</span>
-          </p>
-        </div>
-
-        <Tabs defaultValue="tiktok-shop">
-          <TabsList variant="line" className="border-b border-[#30363d] w-full justify-start">
-            <TabsTrigger value="tiktok-shop">
-              Calculadora TikTok Shop
-            </TabsTrigger>
-            <TabsTrigger value="affiliate">
-              Calculadora Oferta Afiliados
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tiktok-shop" className="mt-6">
-            <RentabilityCalculator />
-          </TabsContent>
-
-          <TabsContent value="affiliate" className="mt-6">
-            <AffiliateOfferCalculator />
-          </TabsContent>
-        </Tabs>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-[#e6edf3]">
+          Calculadora de Rentabilidad
+        </h1>
+        <p className="text-sm text-[#8b949e] mt-1">
+          Analiza GMV Max y Lives para{" "}
+          <span className="text-[#f97316] font-medium">{brandName}</span>
+        </p>
       </div>
+
+      <Tabs defaultValue="gmv-max">
+        <TabsList variant="line" className="border-b border-[#30363d] w-full justify-start">
+          <TabsTrigger value="gmv-max">Calculadora GMV Max</TabsTrigger>
+          <TabsTrigger value="lives">Calculadora Lives</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="gmv-max" className="mt-6">
+          <GMVMaxCalculator defaults={defaults} />
+        </TabsContent>
+
+        <TabsContent value="lives" className="mt-6">
+          <LivesCalculator defaults={defaults} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

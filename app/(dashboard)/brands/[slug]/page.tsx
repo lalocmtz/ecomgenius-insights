@@ -24,6 +24,8 @@ import type {
   ProductCampaign,
   LiveCampaign,
   Product,
+  TeamMember,
+  FixedCost,
 } from "@/types";
 
 interface PageProps {
@@ -99,6 +101,9 @@ export default function BrandOverviewPage({ params }: PageProps) {
   );
   const [liveCampaigns, setLiveCampaigns] = useState<LiveCampaign[]>([]);
   const [topProducts, setTopProducts] = useState<Product[]>([]);
+  const [teamTotal, setTeamTotal] = useState(0);
+  const [opsTotal, setOpsTotal] = useState(0);
+  const [hasFixedCosts, setHasFixedCosts] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const startStr = format(dateRange.start, "yyyy-MM-dd");
@@ -124,7 +129,7 @@ export default function BrandOverviewPage({ params }: PageProps) {
       setBrand(brandData as Brand);
       const brandId = brandData.id;
 
-      const [dailyRes, prodCampRes, liveCampRes, productsRes] =
+      const [dailyRes, prodCampRes, liveCampRes, productsRes, teamRes, costsRes] =
         await Promise.all([
           supabase
             .from("daily_overview")
@@ -150,14 +155,34 @@ export default function BrandOverviewPage({ params }: PageProps) {
             .or(`and(period_start.lte.${endStr},period_end.gte.${startStr}),period_start.is.null`)
             .order("gmv", { ascending: false })
             .limit(5),
+          supabase
+            .from("team_members")
+            .select("cost_monthly")
+            .eq("brand_id", brandId)
+            .eq("active", true),
+          supabase
+            .from("fixed_costs")
+            .select("amount_monthly")
+            .eq("brand_id", brandId)
+            .eq("active", true),
         ]);
 
       if (cancelled) return;
+
+      const teamCost = (teamRes.data ?? []).reduce(
+        (s: number, t: { cost_monthly: number }) => s + (Number(t.cost_monthly) || 0), 0
+      );
+      const opsCost = (costsRes.data ?? []).reduce(
+        (s: number, c: { amount_monthly: number }) => s + (Number(c.amount_monthly) || 0), 0
+      );
 
       setDailyData((dailyRes.data as DailyOverview[]) || []);
       setProductCampaigns((prodCampRes.data as ProductCampaign[]) || []);
       setLiveCampaigns((liveCampRes.data as LiveCampaign[]) || []);
       setTopProducts((productsRes.data as Product[]) || []);
+      setTeamTotal(teamCost);
+      setOpsTotal(opsCost);
+      setHasFixedCosts((teamRes.data?.length ?? 0) > 0 || (costsRes.data?.length ?? 0) > 0);
       setLoading(false);
     }
 
@@ -187,14 +212,26 @@ export default function BrandOverviewPage({ params }: PageProps) {
     const retentionPct = brand?.retention_pct ?? 0;
     const ivaAdsPct = brand?.iva_ads_pct ?? 0;
 
-    const utilidadEstimada =
+    const commissionAffiliates = brand?.commission_affiliates ?? 0;
+    const affiliatesCost = totalGMV * (commissionAffiliates / 100);
+    const ttCommission = totalGMV * (commissionTiktok / 100);
+    const baseImponible = totalGMV * (1 - commissionTiktok / 100 - commissionAffiliates / 100);
+    const taxRetention = baseImponible * 0.105;
+    const ivaAds = totalAdSpend * (ivaAdsPct / 100);
+
+    const grossMargin =
       totalGMV -
       totalRefunds -
       totalGMV * (productCostPct / 100) -
-      totalGMV * (commissionTiktok / 100) -
-      totalGMV * (retentionPct / 100) -
+      affiliatesCost -
+      ttCommission -
+      taxRetention -
       totalAdSpend -
-      totalAdSpend * (ivaAdsPct / 100);
+      ivaAds;
+
+    const totalFixedCosts = teamTotal + opsTotal;
+    const netProfit = grossMargin - totalFixedCosts;
+    const netMarginPct = totalGMV > 0 ? (netProfit / totalGMV) * 100 : 0;
 
     return {
       totalGMV,
@@ -202,11 +239,14 @@ export default function BrandOverviewPage({ params }: PageProps) {
       aov,
       totalAdSpend,
       roasBlended,
-      utilidadEstimada,
+      grossMargin,
+      totalFixedCosts,
+      netProfit,
+      netMarginPct,
       productAdSpend,
       liveAdSpend,
     };
-  }, [dailyData, productCampaigns, liveCampaigns, brand]);
+  }, [dailyData, productCampaigns, liveCampaigns, brand, teamTotal, opsTotal]);
 
   const chartGMVData = useMemo(
     () =>
@@ -310,13 +350,57 @@ export default function BrandOverviewPage({ params }: PageProps) {
               subtitle={kpis.roasBlended >= 3 ? "Saludable" : kpis.roasBlended >= 1 ? "Aceptable" : "Bajo"}
             />
             <KPICard
-              title="Utilidad Estimada"
-              value={formatMXN(kpis.utilidadEstimada)}
+              title="Utilidad Neta"
+              value={formatMXN(kpis.netProfit)}
               icon={Wallet}
-              subtitle={kpis.utilidadEstimada > 0 ? "Positiva" : "Negativa"}
+              subtitle={`Margen: ${kpis.netMarginPct.toFixed(1)}%`}
             />
           </div>
           </Suspense>
+
+          {/* Fixed Costs Summary */}
+          {hasFixedCosts ? (
+            <div className="rounded-xl border border-[#30363d] bg-[#1c2128] px-5 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div>
+                  <span className="text-xs text-[#8b949e]">Gastos fijos/mes</span>
+                  <p className="text-sm font-semibold text-[#e6edf3]">{formatMXN(kpis.totalFixedCosts)}</p>
+                </div>
+                <div className="h-8 w-px bg-[#30363d]" />
+                <div>
+                  <span className="text-xs text-[#8b949e]">Margen bruto</span>
+                  <p className={`text-sm font-semibold ${kpis.grossMargin > 0 ? "text-[#22c55e]" : "text-[#ef4444]"}`}>
+                    {formatMXN(kpis.grossMargin)}
+                  </p>
+                </div>
+                <div className="h-8 w-px bg-[#30363d]" />
+                <div>
+                  <span className="text-xs text-[#8b949e]">Utilidad neta</span>
+                  <p className={`text-sm font-semibold ${kpis.netProfit > 0 ? "text-[#22c55e]" : "text-[#ef4444]"}`}>
+                    {formatMXN(kpis.netProfit)}
+                  </p>
+                </div>
+              </div>
+              <a
+                href={`/brands/${slug}/rentabilidad`}
+                className="text-xs text-[#f97316] hover:underline"
+              >
+                Ver P&amp;L completo &rarr;
+              </a>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[#30363d] bg-[#1c2128]/50 px-5 py-3 flex items-center justify-between">
+              <p className="text-xs text-[#8b949e]">
+                No hay gastos fijos registrados. La utilidad neta no incluye equipo ni costos operativos.
+              </p>
+              <a
+                href={`/brands/${slug}/rentabilidad`}
+                className="text-xs text-[#f97316] hover:underline whitespace-nowrap ml-4"
+              >
+                Configurar gastos fijos &rarr;
+              </a>
+            </div>
+          )}
 
           {/* Charts */}
           <Suspense fallback={

@@ -199,6 +199,89 @@ export interface AIReport {
   created_at: string;
 }
 
+export interface TeamMember {
+  id: string;
+  brand_id: string;
+  name: string;
+  role: string;
+  role_description: string | null;
+  cost_monthly: number;
+  cost_type: "salary" | "freelance" | "agency";
+  hours_per_week: number | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface FixedCost {
+  id: string;
+  brand_id: string;
+  name: string;
+  category: "software" | "logistics" | "production" | "office" | "other";
+  amount_monthly: number;
+  notes: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface MonthlyPL {
+  id: string;
+  brand_id: string;
+  year: number;
+  month: number;
+  gmv: number;
+  refunds: number;
+  ad_spend: number;
+  product_cost: number;
+  tiktok_commission: number;
+  tax_retention: number;
+  guides_affiliates: number;
+  iva_ads: number;
+  gross_margin: number;
+  total_fixed_costs: number;
+  net_profit: number;
+  net_margin_pct: number;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface AdvisorContext {
+  brandName: string;
+  period: string;
+  gmv: number;
+  refunds: number;
+  refundRate: number;
+  orders: number;
+  aov: number;
+  uniqueCustomers: number;
+  totalAdSpend: number;
+  roasBlended: number;
+  gmvMaxSpend: number;
+  gmvMaxRoi: number;
+  livesSpend: number;
+  livesRoi: number;
+  productCostPct: number;
+  productCost: number;
+  affiliatesCost: number;
+  ttCommission: number;
+  taxRetention: number;
+  ivaAds: number;
+  grossMargin: number;
+  grossMarginPct: number;
+  team: TeamMember[];
+  fixedCosts: FixedCost[];
+  totalTeamCost: number;
+  totalOpsCost: number;
+  totalFixedCosts: number;
+  netProfit: number;
+  netMarginPct: number;
+  topCreatives: Creative[];
+  worstCreatives: Creative[];
+  affiliateGmv: number;
+  topCreator: string;
+  topCreatorGmv: number;
+  estimatedCommission: number;
+}
+
 export type DatePreset = "1d" | "3d" | "7d" | "30d" | "custom";
 
 export interface DateRange {
