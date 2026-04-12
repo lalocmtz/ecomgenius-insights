@@ -43,10 +43,12 @@ function TeamMemberForm({
   const [costType, setCostType] = useState(editing?.cost_type ?? "salary");
   const [hoursPerWeek, setHoursPerWeek] = useState(editing?.hours_per_week ?? 0);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!name.trim() || !role.trim() || costMonthly <= 0) return;
     setSaving(true);
+    setError(null);
 
     const row = {
       brand_id: brandId,
@@ -58,13 +60,17 @@ function TeamMemberForm({
       hours_per_week: hoursPerWeek > 0 ? hoursPerWeek : null,
     };
 
-    if (editing) {
-      await supabase.from("team_members").update(row).eq("id", editing.id);
-    } else {
-      await supabase.from("team_members").insert(row);
-    }
+    const { error: dbError } = editing
+      ? await supabase.from("team_members").update(row).eq("id", editing.id)
+      : await supabase.from("team_members").insert(row);
 
     setSaving(false);
+
+    if (dbError) {
+      setError(dbError.message);
+      return;
+    }
+
     onDone();
   }
 
@@ -133,6 +139,11 @@ function TeamMemberForm({
           />
         </div>
       </div>
+      {error && (
+        <div className="rounded-lg border border-[#ef4444]/40 bg-[#ef4444]/10 px-3 py-2 text-xs text-[#fca5a5]">
+          Error al guardar: {error}
+        </div>
+      )}
       <div className="flex gap-2">
         <button
           onClick={handleSave}
@@ -167,10 +178,12 @@ function FixedCostForm({
   const [amount, setAmount] = useState(editing?.amount_monthly ?? 0);
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     if (!name.trim() || amount <= 0) return;
     setSaving(true);
+    setError(null);
 
     const row = {
       brand_id: brandId,
@@ -180,13 +193,17 @@ function FixedCostForm({
       notes: notes.trim() || null,
     };
 
-    if (editing) {
-      await supabase.from("fixed_costs").update(row).eq("id", editing.id);
-    } else {
-      await supabase.from("fixed_costs").insert(row);
-    }
+    const { error: dbError } = editing
+      ? await supabase.from("fixed_costs").update(row).eq("id", editing.id)
+      : await supabase.from("fixed_costs").insert(row);
 
     setSaving(false);
+
+    if (dbError) {
+      setError(dbError.message);
+      return;
+    }
+
     onDone();
   }
 
@@ -237,6 +254,11 @@ function FixedCostForm({
           />
         </div>
       </div>
+      {error && (
+        <div className="rounded-lg border border-[#ef4444]/40 bg-[#ef4444]/10 px-3 py-2 text-xs text-[#fca5a5]">
+          Error al guardar: {error}
+        </div>
+      )}
       <div className="flex gap-2">
         <button
           onClick={handleSave}
@@ -261,6 +283,7 @@ export function GastosFijosTab({ brandId, brand }: Props) {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [costs, setCosts] = useState<FixedCost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showTeamForm, setShowTeamForm] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | undefined>();
   const [showCostForm, setShowCostForm] = useState(false);
@@ -269,6 +292,7 @@ export function GastosFijosTab({ brandId, brand }: Props) {
 
   async function loadData() {
     setLoading(true);
+    setLoadError(null);
     const [teamRes, costsRes] = await Promise.all([
       supabase
         .from("team_members")
@@ -283,6 +307,12 @@ export function GastosFijosTab({ brandId, brand }: Props) {
         .eq("active", true)
         .order("category", { ascending: true }),
     ]);
+    if (teamRes.error || costsRes.error) {
+      setLoadError(
+        (teamRes.error?.message ?? costsRes.error?.message ?? "Error desconocido") +
+          " — Las tablas team_members y fixed_costs probablemente no existen aun. Corre el SQL en supabase/migration-rentabilidad.sql desde el dashboard de Supabase."
+      );
+    }
     setTeam((teamRes.data as TeamMember[]) ?? []);
     setCosts((costsRes.data as FixedCost[]) ?? []);
     setLoading(false);
@@ -342,6 +372,11 @@ export function GastosFijosTab({ brandId, brand }: Props) {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-[#ef4444]/40 bg-[#ef4444]/10 px-4 py-3 text-sm text-[#fca5a5]">
+          {loadError}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT: Equipo */}
         <div className="space-y-4">
