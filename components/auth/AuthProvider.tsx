@@ -79,13 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Redirect to /login when unauthenticated outside of /login itself
+  // Redirect to /login when unauthenticated outside of /login and /signup
   useEffect(() => {
     if (loading) return;
-    if (!session && pathname !== "/login") {
+    if (!session && pathname !== "/login" && pathname !== "/signup") {
       router.replace("/login");
     }
-    if (session && pathname === "/login") {
+    if (session && (pathname === "/login" || pathname === "/signup")) {
       router.replace("/");
     }
   }, [loading, session, pathname, router]);
