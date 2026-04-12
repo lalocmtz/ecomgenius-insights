@@ -52,16 +52,33 @@ export function useCostPresets(brandId: string) {
     async (
       name: string,
       description: string,
-      costs: Omit<CostPreset, "id" | "brand_id" | "created_at" | "updated_at">,
+      costs: {
+        product_cost_mode: "pct" | "fixed";
+        product_cost_pct?: number;
+        product_cost_fixed?: number;
+        guias_pct: number;
+        tt_commission_pct: number;
+        iva_ads_pct: number;
+        retencion_base_pct: number;
+        costo_host?: number;
+        roas_value?: number;
+        has_ads: boolean;
+      },
       brandId: string
     ) => {
       try {
+        // Obtener user_id del usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user authenticated");
+
         const { error, data } = await supabase
           .from("predefined_cost_presets")
           .insert({
             name,
             description,
             brand_id: brandId,
+            user_id: user.id,
+            is_default: false,
             ...costs,
           })
           .select();
