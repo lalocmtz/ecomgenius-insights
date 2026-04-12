@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.vercel
+apps/cowork
+dist
+.DS_Store
+*.log
