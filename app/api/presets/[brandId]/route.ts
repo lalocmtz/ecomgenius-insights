@@ -6,9 +6,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { brandId: string } }
+  { params }: { params: Promise<{ brandId: string }> }
 ) {
   try {
+    const { brandId } = await params;
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -19,7 +20,7 @@ export async function GET(
     const { data, error } = await supabase
       .from("predefined_cost_presets")
       .select("*")
-      .eq("brand_id", params.brandId)
+      .eq("brand_id", brandId)
       .eq("user_id", session.user.id)
       .order("is_default", { ascending: false })
       .order("created_at", { ascending: false });
