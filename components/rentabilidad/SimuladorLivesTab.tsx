@@ -2,11 +2,14 @@
 
 import { useState, useCallback, useMemo } from "react";
 import type { Brand } from "@/types";
+import { CostPresetsModal } from "./CostPresetsModal";
+import type { CostPreset } from "@/hooks/useCostPresets";
 
 interface LiveSimState {
   pedidos: number;
   aov: number;
   roas: number;
+  hasAds: boolean; // true = con pauta, false = sin pauta
   productCostMode: "pct" | "fixed";
   productCostPct: number;
   productCostFixed: number;
@@ -16,12 +19,14 @@ interface LiveSimState {
   retencionBasePct: number;
   costoHost: number;
   costsOpen: boolean;
+  presetsOpen: boolean;
 }
 
 const DEFAULT: LiveSimState = {
   pedidos: 0,
   aov: 349,
   roas: 3.0,
+  hasAds: true,
   productCostMode: "pct",
   productCostPct: 12,
   productCostFixed: 65,
@@ -31,6 +36,7 @@ const DEFAULT: LiveSimState = {
   retencionBasePct: 10.5,
   costoHost: 0,
   costsOpen: true,
+  presetsOpen: false,
 };
 
 function computeLive(s: LiveSimState) {
@@ -39,7 +45,8 @@ function computeLive(s: LiveSimState) {
   const gmv = pedidos * aov;
   if (gmv === 0) return null;
 
-  const gastoAds = s.roas > 0 ? gmv / s.roas : 0;
+  // Si no hay pauta, gastoAds = 0
+  const gastoAds = !s.hasAds ? 0 : s.roas > 0 ? gmv / s.roas : 0;
   const ivaAds = gastoAds * (s.ivaAdsPct / 100);
 
   const productCostUnit =
@@ -149,6 +156,22 @@ export function SimuladorLivesTab({ brand }: { brand: Brand }) {
     []
   );
 
+  const handleSelectPreset = (preset: CostPreset) => {
+    setS((prev) => ({
+      ...prev,
+      product_cost_mode: preset.product_cost_mode,
+      product_cost_pct: preset.product_cost_pct || 12,
+      product_cost_fixed: preset.product_cost_fixed || 65,
+      guiasPct: preset.guias_pct,
+      ttCommissionPct: preset.tt_commission_pct,
+      ivaAdsPct: preset.iva_ads_pct,
+      retencionBasePct: preset.retencion_base_pct,
+      costoHost: preset.costo_host || 0,
+      hasAds: preset.has_ads,
+      roas: preset.roas_value || 3.0,
+    }));
+  };
+
   const C = useMemo(() => computeLive(s), [s]);
 
   const roasTicks = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8];
@@ -159,6 +182,36 @@ export function SimuladorLivesTab({ brand }: { brand: Brand }) {
     <div className="flex gap-5 items-start flex-col lg:flex-row">
       {/* ── LEFT: INPUTS ── */}
       <div className="w-full lg:w-[420px] lg:flex-shrink-0 space-y-4">
+        {/* BLOQUE 0: Presets */}
+        {brand?.id && (
+          <>
+            <button
+              onClick={() => update("presetsOpen", !s.presetsOpen)}
+              className="w-full rounded-xl bg-gradient-to-r from-[#f97316]/20 to-[#f97316]/5 border border-[#f97316]/30 px-4 py-2 text-sm font-semibold text-[#f97316] hover:border-[#f97316]/60 transition-colors"
+            >
+              📋 Cargar Preset de Costos
+            </button>
+            <CostPresetsModal
+              brandId={brand.id}
+              isOpen={s.presetsOpen}
+              onClose={() => update("presetsOpen", false)}
+              onSelectPreset={handleSelectPreset}
+              currentValues={{
+                product_cost_mode: s.productCostMode,
+                product_cost_pct: s.productCostPct,
+                product_cost_fixed: s.productCostFixed,
+                guias_pct: s.guiasPct,
+                tt_commission_pct: s.ttCommissionPct,
+                iva_ads_pct: s.ivaAdsPct,
+                retencion_base_pct: s.retencionBasePct,
+                costo_host: s.costoHost,
+                roas_value: s.roas,
+                has_ads: s.hasAds,
+              }}
+            />
+          </>
+        )}
+
         {/* BLOQUE 1: Pedidos + AOV */}
         <div className="rounded-xl border border-[#30363d] bg-[#161b22] p-5">
           <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
@@ -212,87 +265,108 @@ export function SimuladorLivesTab({ brand }: { brand: Brand }) {
             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Gasto en Pauta &mdash; ROAS
             </label>
-            <span
-              className={`text-2xl font-black ${
-                s.roas >= 3
-                  ? "text-green-400"
-                  : s.roas >= 2
-                    ? "text-amber-400"
-                    : "text-red-400"
-              }`}
-            >
-              {s.roas.toFixed(1)}x
-            </span>
-          </div>
-
-          <div className="relative mb-2">
-            <style>{`
-              .lives-roas-slider {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 100%;
-                height: 6px;
-                border-radius: 3px;
-                background: linear-gradient(to right,
-                  ${roasColor} 0%,
-                  ${roasColor} ${((s.roas - 0.5) / 7.5) * 100}%,
-                  #30363d ${((s.roas - 0.5) / 7.5) * 100}%,
-                  #30363d 100%
-                );
-                cursor: pointer;
-                outline: none;
-              }
-              .lives-roas-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                width: 20px; height: 20px;
-                border-radius: 50%;
-                background: ${roasColor};
-                border: 3px solid #161b22;
-                box-shadow: 0 0 0 2px ${roasColor}40;
-                cursor: pointer;
-                transition: box-shadow 0.15s;
-              }
-              .lives-roas-slider::-webkit-slider-thumb:hover {
-                box-shadow: 0 0 0 5px ${roasColor}40;
-              }
-              .lives-roas-slider::-moz-range-thumb {
-                width: 20px; height: 20px;
-                border-radius: 50%;
-                background: ${roasColor};
-                border: 3px solid #161b22;
-                cursor: pointer;
-              }
-              .lives-roas-slider::-moz-range-track {
-                height: 6px;
-                border-radius: 3px;
-                background: #30363d;
-              }
-            `}</style>
-            <input
-              type="range"
-              min="0.5"
-              max="8"
-              step="0.1"
-              value={s.roas}
-              onChange={(e) => update("roas", parseFloat(e.target.value))}
-              className="lives-roas-slider"
-            />
-            <div className="flex justify-between mt-1 px-0">
-              {roasTicks.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => update("roas", t)}
-                  className={`text-xs transition-colors ${
-                    Math.abs(s.roas - t) < 0.05
-                      ? "text-white font-bold"
-                      : "text-gray-600 hover:text-gray-400"
-                  }`}
-                >
-                  {t}x
-                </button>
-              ))}
+            <div className="flex gap-2 items-center">
+              {/* Toggle Sin Pauta */}
+              <button
+                onClick={() => update("hasAds", !s.hasAds)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                  s.hasAds
+                    ? "bg-[#30363d] text-gray-500"
+                    : "bg-red-500/20 border border-red-500/50 text-red-400"
+                }`}
+              >
+                {s.hasAds ? "Con Pauta" : "❌ Sin Pauta"}
+              </button>
+              <span
+                className={`text-2xl font-black ${
+                  s.roas >= 3
+                    ? "text-green-400"
+                    : s.roas >= 2
+                      ? "text-amber-400"
+                      : "text-red-400"
+                }`}
+              >
+                {s.hasAds ? `${s.roas.toFixed(1)}x` : "0x"}
+              </span>
             </div>
           </div>
+
+          {s.hasAds ? (
+            <div className="relative mb-2">
+              <style>{`
+                .lives-roas-slider {
+                  -webkit-appearance: none;
+                  appearance: none;
+                  width: 100%;
+                  height: 6px;
+                  border-radius: 3px;
+                  background: linear-gradient(to right,
+                    ${s.roas >= 3 ? "#22c55e" : s.roas >= 2 ? "#f59e0b" : "#ef4444"} 0%,
+                    ${s.roas >= 3 ? "#22c55e" : s.roas >= 2 ? "#f59e0b" : "#ef4444"} ${((s.roas - 0.5) / 7.5) * 100}%,
+                    #30363d ${((s.roas - 0.5) / 7.5) * 100}%,
+                    #30363d 100%
+                  );
+                  cursor: pointer;
+                  outline: none;
+                }
+                .lives-roas-slider::-webkit-slider-thumb {
+                  -webkit-appearance: none;
+                  width: 20px; height: 20px;
+                  border-radius: 50%;
+                  background: ${s.roas >= 3 ? "#22c55e" : s.roas >= 2 ? "#f59e0b" : "#ef4444"};
+                  border: 3px solid #161b22;
+                  box-shadow: 0 0 0 2px ${s.roas >= 3 ? "#22c55e" : s.roas >= 2 ? "#f59e0b" : "#ef4444"}40;
+                  cursor: pointer;
+                  transition: box-shadow 0.15s;
+                }
+                .lives-roas-slider::-webkit-slider-thumb:hover {
+                  box-shadow: 0 0 0 5px ${s.roas >= 3 ? "#22c55e" : s.roas >= 2 ? "#f59e0b" : "#ef4444"}40;
+                }
+                .lives-roas-slider::-moz-range-thumb {
+                  width: 20px; height: 20px;
+                  border-radius: 50%;
+                  background: ${s.roas >= 3 ? "#22c55e" : s.roas >= 2 ? "#f59e0b" : "#ef4444"};
+                  border: 3px solid #161b22;
+                  cursor: pointer;
+                }
+                .lives-roas-slider::-moz-range-track {
+                  height: 6px;
+                  border-radius: 3px;
+                  background: #30363d;
+                }
+              `}</style>
+              <input
+                type="range"
+                min="0.5"
+                max="8"
+                step="0.1"
+                value={s.roas}
+                onChange={(e) => update("roas", parseFloat(e.target.value))}
+                className="lives-roas-slider"
+              />
+              <div className="flex justify-between mt-1 px-0">
+                {roasTicks.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => update("roas", t)}
+                    className={`text-xs transition-colors ${
+                      Math.abs(s.roas - t) < 0.05
+                        ? "text-white font-bold"
+                        : "text-gray-600 hover:text-gray-400"
+                    }`}
+                  >
+                    {t}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#0d1117] rounded-lg p-3 mb-2">
+              <p className="text-xs text-red-400">
+                Sin pauta &mdash; Gasto en publicidad = MX$ 0
+              </p>
+            </div>
+          )}
 
           {C && (
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -302,7 +376,7 @@ export function SimuladorLivesTab({ brand }: { brand: Brand }) {
                   {formatMX(C.gastoAds)}
                 </p>
                 <p className="text-gray-600 text-xs">
-                  {pct((1 / s.roas) * 100)} del GMV
+                  {s.hasAds ? `${pct((1 / s.roas) * 100)} del GMV` : "N/A"}
                 </p>
               </div>
               <div className="bg-[#0d1117] rounded-lg p-3">
