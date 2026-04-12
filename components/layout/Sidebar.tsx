@@ -11,8 +11,10 @@ import {
   Upload,
   TrendingUp,
   Settings,
+  LogOut,
 } from "lucide-react";
 import { BrandSwitcher } from "./BrandSwitcher";
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
@@ -34,6 +36,7 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   const brandSlug = pathname.split("/")[2] || "";
   const brandBase = `/brands/${brandSlug}`;
@@ -79,7 +82,20 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-[#30363d] px-3 py-3" />
+      <div className="border-t border-[#30363d] px-3 py-3">
+        {user && (
+          <div className="mb-2 truncate px-2 text-[11px] text-[#8b949e]">
+            {user.email}
+          </div>
+        )}
+        <button
+          onClick={signOut}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#8b949e] transition-colors hover:bg-[#161b22] hover:text-[#e6edf3]"
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar sesion
+        </button>
+      </div>
     </aside>
   );
 }
