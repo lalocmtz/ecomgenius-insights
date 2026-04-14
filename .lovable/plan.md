@@ -1,44 +1,30 @@
 
 
-## Plan: Simplify Platform + Fix Build Errors + Triple Whale Integration
+## Plan: Agregar función para crear hosts nuevos
 
-### What changes
+### Problema actual
+Los hosts están hardcodeados como `const HOSTS = ['DENISSE', 'EMILIO', 'FER', 'KARO']` en `Lives.tsx`. No hay forma de agregar nuevos hosts desde la plataforma.
 
-1. **Remove pages**: Creativos & Pauta, Orgánico Social
-2. **Merge Finanzas + KPIs Financieros** into a single "Finanzas" page with tabs
-3. **Update sidebar and router** to reflect removals
-4. **Fix 3 TypeScript build errors** (dynamic `{ [field]: value }` update patterns)
-5. **Add Triple Whale data sync section** in Configuracion page
+### Solución
 
-### Detailed steps
+**1. Crear tabla `hosts` en la base de datos**
+- Columnas: `id` (uuid), `name` (text, unique), `brand` (text), `color` (text), `created_at` (timestamp)
+- RLS: lectura pública, inserción pública (no hay auth implementada)
+- Insertar los 4 hosts existentes como seed data
 
-#### Step 1 — Fix build errors (3 files)
-The `{ [field]: value }` pattern produces `{ [x: string]: unknown }` which the strict Supabase types reject. Fix by casting to `as any` in three places:
-- `src/hooks/useSupabaseData.ts` line 156: `.update({ [field]: value } as any)`
-- `src/hooks/useObjetivos.ts` line 176: `.update({ [field]: value } as any)`
-- `src/pages/Lives.tsx` line 125: `.update({ ... } as any)`
+**2. Crear hook `useHosts`** en `useSupabaseData.ts`
+- Query que trae hosts filtrados por `activeBrand` (o globales)
+- Mutation para insertar nuevo host
 
-#### Step 2 — Remove pages from sidebar and router
-- **AppSidebar.tsx**: Remove nav items for "Creativos & Pauta" (`/creativos`), "Orgánico Social" (`/organico`), and "KPIs Financieros" (`/kpis`)
-- **App.tsx**: Remove routes for `/creativos`, `/organico`, `/kpis`. Remove imports for CreativosYPauta, OrganicoSocial, KPIsFinancieros
+**3. Modificar `Lives.tsx`**
+- Reemplazar `const HOSTS` hardcodeado por datos del hook `useHosts`
+- Agregar un pequeño modal/dialog para crear host nuevo: solo pide nombre y color
+- El botón para agregar host aparece al final de los filtros de host (un "+" junto a los pills)
+- Los selects de host en la tabla editable y en el modal "Agregar Live" también usan la lista dinámica
+- Asignar colores automáticos de un pool predefinido si no se elige uno
 
-#### Step 3 — Merge Finanzas + KPIs into one page
-- Rewrite `Finanzas.tsx` to have two tabs: "Simulador de Márgenes" (current Finanzas content) and "KPIs Financieros" (current KPIs content)
-- Delete `KPIsFinancieros.tsx` or leave unused
-
-#### Step 4 — Triple Whale integration setup
-- Add a new section in `Configuracion.tsx` for "Sincronización de Datos"
-- Show a card explaining Triple Whale connection with a button to configure API key
-- Create an edge function `supabase/functions/sync-triple-whale/index.ts` that:
-  - Reads Triple Whale API key from secrets
-  - Fetches daily sales data (Meta, TikTok Ads, GMV Max, Lives, Google)
-  - Upserts into `daily_metrics` table
-- Use the `add_secret` tool to request the Triple Whale API key from the user
-- Add a manual "Sync Now" button + show last sync timestamp
-- The edge function can be scheduled via pg_cron for daily auto-sync
-
-### Technical notes
-- Triple Whale API provides unified ecommerce analytics across Meta, TikTok, Google channels
-- The sync function will map Triple Whale channel data to existing `daily_metrics` canal values
-- Will ask user for API key before implementing the sync function
+### Archivos a modificar
+- **Nueva migración SQL**: crear tabla `hosts` con seed data
+- **`src/hooks/useSupabaseData.ts`**: agregar `useHosts()` y `useAddHost()`
+- **`src/pages/Lives.tsx`**: reemplazar HOSTS hardcodeado, agregar UI para nuevo host
 
