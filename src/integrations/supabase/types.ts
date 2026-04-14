@@ -230,6 +230,30 @@ export type Database = {
         }
         Relationships: []
       }
+      hosts: {
+        Row: {
+          brand: string
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          brand: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          brand?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       kpis_monthly: {
         Row: {
           brand: string
