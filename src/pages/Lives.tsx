@@ -222,6 +222,10 @@ export default function Lives() {
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${hostFilter === h ? 'bg-orange-500 text-white' : 'bg-[#1e1e1e] text-gray-400 hover:text-white'}`}
               >{h}</button>
             ))}
+            <button onClick={() => setShowAddHost(true)}
+              className="px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#1e1e1e] text-gray-400 hover:text-white hover:bg-orange-500/20 transition-colors"
+              title="Agregar host"
+            ><Plus size={12} /></button>
           </div>
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
