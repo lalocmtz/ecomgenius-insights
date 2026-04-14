@@ -195,7 +195,7 @@ type SortDir = "asc" | "desc";
 
 export default function CampaignsPage() {
   const params = useParams<{ slug: string }>();
-  const slug = params.slug;
+  const slug = params?.slug ?? "";
   const { dateRange } = useDateRange();
 
   /* State ------------------------------------------------------------------ */
