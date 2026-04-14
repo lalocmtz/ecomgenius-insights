@@ -460,10 +460,45 @@ export default function Lives() {
       </div>
 
       {/* Add Live Modal */}
-      {showModal && <AddLiveModal activeBrand={activeBrand} onClose={() => setShowModal(false)} onSaved={() => {
+      {showModal && <AddLiveModal activeBrand={activeBrand} hosts={HOSTS} onClose={() => setShowModal(false)} onSaved={() => {
         queryClient.invalidateQueries({ queryKey: ['lives'] });
         setShowModal(false);
       }} />}
+
+      {/* Add Host Dialog */}
+      <Dialog open={showAddHost} onOpenChange={setShowAddHost}>
+        <DialogContent className="bg-[#111111] border-gray-800 sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Agregar Host</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Nombre del host"
+            value={newHostName}
+            onChange={e => setNewHostName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && newHostName.trim()) {
+                addHostMutation.mutate({ name: newHostName.trim() });
+                setNewHostName('');
+                setShowAddHost(false);
+              }
+            }}
+            className="bg-[#1a1a1a] border-gray-700 text-white"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddHost(false)} className="border-gray-700 text-gray-300">Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (!newHostName.trim()) return;
+                addHostMutation.mutate({ name: newHostName.trim() });
+                setNewHostName('');
+                setShowAddHost(false);
+              }}
+              disabled={!newHostName.trim() || addHostMutation.isPending}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >Agregar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
