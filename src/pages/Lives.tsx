@@ -537,10 +537,10 @@ function CalcRow({ label, value, bold, color }: { label: string; value: string; 
   );
 }
 
-function AddLiveModal({ activeBrand, onClose, onSaved }: { activeBrand: string; onClose: () => void; onSaved: () => void }) {
+function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: string; hosts: string[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
-    hora: '', duracion: '', host: HOSTS[0],
+    hora: '', duracion: '', host: hosts[0] || '',
     pedidos: 0, venta: 0, ads: 0, costo_host: 0,
   });
   const [saving, setSaving] = useState(false);
@@ -586,7 +586,7 @@ function AddLiveModal({ activeBrand, onClose, onSaved }: { activeBrand: string; 
             <label className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1 block">Host</label>
             <select value={form.host} onChange={e => set('host', e.target.value)}
               className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none">
-              {HOSTS.map(h => <option key={h} value={h}>{h}</option>)}
+              {hosts.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>
           <ModalField label="Pedidos" type="number" value={form.pedidos} onChange={v => set('pedidos', Number(v) || 0)} />
