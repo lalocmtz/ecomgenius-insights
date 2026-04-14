@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useLives, useUpdateCell } from '@/hooks/useSupabaseData';
+import { useLives, useUpdateCell, useHosts, useAddHost } from '@/hooks/useSupabaseData';
 import { useAppStore } from '@/store/useAppStore';
 import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
 import { DollarSign, Target, BarChart3, Radio, Plus, X, ChevronUp, ChevronDown, Calculator, TrendingUp, Lightbulb, PieChart } from 'lucide-react';
@@ -7,11 +7,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
-const HOSTS = ['DENISSE', 'EMILIO', 'FER', 'KARO'];
-const HOST_COLORS: Record<string, string> = {
-  DENISSE: '#f97316', EMILIO: '#3b82f6', FER: '#22c55e', KARO: '#eab308',
-};
+const DEFAULT_HOST_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#eab308', '#ec4899', '#a855f7', '#06b6d4', '#ef4444'];
 
 type SortKey = 'fecha' | 'host' | 'venta' | 'roas_live' | 'utilidad' | 'margen';
 type SortDir = 'asc' | 'desc';
@@ -36,13 +36,24 @@ function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: 
 export default function Lives() {
   const { activeBrand } = useAppStore();
   const { data: livesData, isLoading } = useLives();
+  const { data: hostsData } = useHosts();
+  const addHostMutation = useAddHost();
   const updateCell = useUpdateCell('lives_analysis');
   const queryClient = useQueryClient();
+
+  const HOSTS = useMemo(() => (hostsData || []).map(h => h.name), [hostsData]);
+  const HOST_COLORS: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    (hostsData || []).forEach((h, i) => { map[h.name] = h.color || DEFAULT_HOST_COLORS[i % DEFAULT_HOST_COLORS.length]; });
+    return map;
+  }, [hostsData]);
 
   const [hostFilter, setHostFilter] = useState('Todos');
   const [sortKey, setSortKey] = useState<SortKey>('fecha');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showModal, setShowModal] = useState(false);
+  const [showAddHost, setShowAddHost] = useState(false);
+  const [newHostName, setNewHostName] = useState('');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -211,6 +222,10 @@ export default function Lives() {
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${hostFilter === h ? 'bg-orange-500 text-white' : 'bg-[#1e1e1e] text-gray-400 hover:text-white'}`}
               >{h}</button>
             ))}
+            <button onClick={() => setShowAddHost(true)}
+              className="px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#1e1e1e] text-gray-400 hover:text-white hover:bg-orange-500/20 transition-colors"
+              title="Agregar host"
+            ><Plus size={12} /></button>
           </div>
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
@@ -445,10 +460,45 @@ export default function Lives() {
       </div>
 
       {/* Add Live Modal */}
-      {showModal && <AddLiveModal activeBrand={activeBrand} onClose={() => setShowModal(false)} onSaved={() => {
+      {showModal && <AddLiveModal activeBrand={activeBrand} hosts={HOSTS} onClose={() => setShowModal(false)} onSaved={() => {
         queryClient.invalidateQueries({ queryKey: ['lives'] });
         setShowModal(false);
       }} />}
+
+      {/* Add Host Dialog */}
+      <Dialog open={showAddHost} onOpenChange={setShowAddHost}>
+        <DialogContent className="bg-[#111111] border-gray-800 sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Agregar Host</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Nombre del host"
+            value={newHostName}
+            onChange={e => setNewHostName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && newHostName.trim()) {
+                addHostMutation.mutate({ name: newHostName.trim() });
+                setNewHostName('');
+                setShowAddHost(false);
+              }
+            }}
+            className="bg-[#1a1a1a] border-gray-700 text-white"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddHost(false)} className="border-gray-700 text-gray-300">Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (!newHostName.trim()) return;
+                addHostMutation.mutate({ name: newHostName.trim() });
+                setNewHostName('');
+                setShowAddHost(false);
+              }}
+              disabled={!newHostName.trim() || addHostMutation.isPending}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >Agregar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -487,10 +537,10 @@ function CalcRow({ label, value, bold, color }: { label: string; value: string; 
   );
 }
 
-function AddLiveModal({ activeBrand, onClose, onSaved }: { activeBrand: string; onClose: () => void; onSaved: () => void }) {
+function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: string; hosts: string[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     fecha: new Date().toISOString().split('T')[0],
-    hora: '', duracion: '', host: HOSTS[0],
+    hora: '', duracion: '', host: hosts[0] || '',
     pedidos: 0, venta: 0, ads: 0, costo_host: 0,
   });
   const [saving, setSaving] = useState(false);
@@ -536,7 +586,7 @@ function AddLiveModal({ activeBrand, onClose, onSaved }: { activeBrand: string; 
             <label className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mb-1 block">Host</label>
             <select value={form.host} onChange={e => set('host', e.target.value)}
               className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none">
-              {HOSTS.map(h => <option key={h} value={h}>{h}</option>)}
+              {hosts.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>
           <ModalField label="Pedidos" type="number" value={form.pedidos} onChange={v => set('pedidos', Number(v) || 0)} />

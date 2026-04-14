@@ -185,12 +185,49 @@ export function useSaveScenario() {
   });
 }
 
+// ─── Hosts ───
+export function useHosts() {
+  const { activeBrand } = useAppStore();
+  return useQuery({
+    queryKey: ['hosts', activeBrand],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('hosts')
+        .select('*')
+        .eq('brand', activeBrand)
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAddHost() {
+  const queryClient = useQueryClient();
+  const { activeBrand } = useAppStore();
+  return useMutation({
+    mutationFn: async ({ name, color }: { name: string; color?: string }) => {
+      const { error } = await supabase
+        .from('hosts')
+        .insert({ name: name.toUpperCase(), brand: activeBrand, color: color || null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Host agregado');
+      queryClient.invalidateQueries({ queryKey: ['hosts'] });
+    },
+    onError: (err: Error) => {
+      toast.error('Error: ' + err.message);
+    },
+  });
+}
+
 // ─── Realtime Subscription Hook ───
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs'] as const;
+    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs', 'hosts'] as const;
     
     const channel = supabase
       .channel('realtime-all')
