@@ -113,10 +113,10 @@ export function SimuladorLivesDuring({
         {/* BLOQUE 0: Presets + Seller Center */}
         {brand?.id && (
           <>
-            <div className=\"flex gap-2\">
+            <div className="flex gap-2">
               <button
-                onClick={() => update(\"presetsOpen\", !s.presetsOpen)}
-                className=\"flex-1 rounded-xl bg-gradient-to-r from-[#f97316]/20 to-[#f97316]/5 border border-[#f97316]/30 px-4 py-2 text-sm font-semibold text-[#f97316] hover:border-[#f97316]/60 transition-colors\"
+                onClick={() => update("presetsOpen", !s.presetsOpen)}
+                className="flex-1 rounded-xl bg-gradient-to-r from-[#f97316]/20 to-[#f97316]/5 border border-[#f97316]/30 px-4 py-2 text-sm font-semibold text-[#f97316] hover:border-[#f97316]/60 transition-colors"
               >
                 📋 Editar Costos
               </button>
@@ -147,11 +147,11 @@ export function SimuladorLivesDuring({
                   }
                 }}
                 disabled={s.isLoadingSellerData}
-                className=\"rounded-xl bg-green-500/20 border border-green-500/30 px-4 py-2 text-sm font-semibold text-green-500 hover:border-green-500/60 transition-colors disabled:opacity-50 flex items-center justify-center gap-2\"
-                title=\"Extraer datos del TikTok Seller Center\"
+                className="rounded-xl bg-green-500/20 border border-green-500/30 px-4 py-2 text-sm font-semibold text-green-500 hover:border-green-500/60 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                title="Extraer datos del TikTok Seller Center"
               >
-                <RefreshCw className={`h-4 w-4 ${s.isLoadingSellerData ? \"animate-spin\" : \"\"}`} />
-                <span className=\"hidden sm:inline\">Seller Center</span>
+                <RefreshCw className={`h-4 w-4 ${s.isLoadingSellerData ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Seller Center</span>
               </button>
             </div>
             <CostPresetsModal
@@ -331,11 +331,12 @@ export function SimuladorLivesDuring({
               />
             </div>
           </div>
+        </div>
 
         {/* BLOQUE 2: Session Costs Editor */}
         <LiveSessionCostsEditor
           isOpen={s.isEditingSessionCosts ?? false}
-          onToggle={() => update(\"isEditingSessionCosts\", !s.isEditingSessionCosts)}
+          onToggle={() => update("isEditingSessionCosts", !s.isEditingSessionCosts)}
           sessionCosts={s.sessionCosts}
           baseValues={{
             productCostMode: s.productCostMode,
@@ -348,7 +349,7 @@ export function SimuladorLivesDuring({
             costoHost: s.costoHost,
           }}
           onUpdate={update}
-          onResetSessionCosts={() => update(\"sessionCosts\", undefined)}
+          onResetSessionCosts={() => update("sessionCosts", undefined)}
         />
         {/* BLOQUE 3: Analytics - Últimos 60 días */}
         {brand?.id && userId && (
