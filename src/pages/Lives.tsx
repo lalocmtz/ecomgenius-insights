@@ -36,13 +36,24 @@ function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: 
 export default function Lives() {
   const { activeBrand } = useAppStore();
   const { data: livesData, isLoading } = useLives();
+  const { data: hostsData } = useHosts();
+  const addHostMutation = useAddHost();
   const updateCell = useUpdateCell('lives_analysis');
   const queryClient = useQueryClient();
+
+  const HOSTS = useMemo(() => (hostsData || []).map(h => h.name), [hostsData]);
+  const HOST_COLORS: Record<string, string> = useMemo(() => {
+    const map: Record<string, string> = {};
+    (hostsData || []).forEach((h, i) => { map[h.name] = h.color || DEFAULT_HOST_COLORS[i % DEFAULT_HOST_COLORS.length]; });
+    return map;
+  }, [hostsData]);
 
   const [hostFilter, setHostFilter] = useState('Todos');
   const [sortKey, setSortKey] = useState<SortKey>('fecha');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [showModal, setShowModal] = useState(false);
+  const [showAddHost, setShowAddHost] = useState(false);
+  const [newHostName, setNewHostName] = useState('');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
 
