@@ -15,9 +15,9 @@ export function useDateRange(): {
   const pathname = usePathname();
 
   const dateRange = useMemo<DateRange>(() => {
-    const fromParam = searchParams.get("from");
-    const toParam = searchParams.get("to");
-    const presetParam = (searchParams.get("preset") as DatePreset) || "7d";
+    const fromParam = searchParams?.get("from") ?? null;
+    const toParam = searchParams?.get("to") ?? null;
+    const presetParam = (searchParams?.get("preset") as DatePreset) || "7d";
 
     if (fromParam && toParam) {
       return {
@@ -45,7 +45,7 @@ export function useDateRange(): {
 
   const updateParams = useCallback(
     (start: Date, end: Date, preset: DatePreset) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.set("from", format(start, "yyyy-MM-dd"));
       params.set("to", format(end, "yyyy-MM-dd"));
       params.set("preset", preset);

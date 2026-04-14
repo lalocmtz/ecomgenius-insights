@@ -35,7 +35,7 @@ const presets: { label: string; value: DatePreset }[] = [
 export function DateRangePicker() {
   const { dateRange, setPreset, setCustomRange } = useDateRange();
   const pathname = usePathname();
-  const slug = pathname.split("/")[2] || "";
+  const slug = pathname?.split("/")[2] || "";
 
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() => startOfMonth(dateRange.end));

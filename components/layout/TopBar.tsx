@@ -16,7 +16,7 @@ const pageTitles: Record<string, string> = {
 
 export function TopBar() {
   const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
+  const segments = pathname?.split("/").filter(Boolean) ?? [];
   const lastSegment = segments[segments.length - 1] || "";
   const title = pageTitles[lastSegment] || lastSegment;
 

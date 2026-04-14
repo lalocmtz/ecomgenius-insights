@@ -30,5 +30,16 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "playwright-fixture.ts",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "tailwind.config.ts",
+    "src/**/*",
+    "supabase/functions/**/*",
+    "ecomgenius-intelligence/**/*",
+    "tests/**/*"
+  ]
 }

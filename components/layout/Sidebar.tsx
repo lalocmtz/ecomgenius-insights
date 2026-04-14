@@ -38,7 +38,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
 
-  const brandSlug = pathname.split("/")[2] || "";
+  const brandSlug = pathname?.split("/")[2] || "";
   const brandBase = `/brands/${brandSlug}`;
 
   return (
@@ -63,7 +63,7 @@ export function Sidebar() {
           const isActive =
             item.href === ""
               ? pathname === brandBase || pathname === `${brandBase}/`
-              : pathname.startsWith(fullHref);
+              : pathname?.startsWith(fullHref) ?? false;
 
           return (
             <Link
