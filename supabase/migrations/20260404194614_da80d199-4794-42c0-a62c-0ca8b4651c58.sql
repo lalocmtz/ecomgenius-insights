@@ -1,0 +1,1 @@
+ALTER TABLE public.kpis_monthly ADD CONSTRAINT kpis_monthly_brand_periodo_slug_unique UNIQUE (brand, periodo, kpi_slug);

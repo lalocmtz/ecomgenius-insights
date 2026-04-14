@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Feel Ink (dark) - default */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 14 100% 57%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 64%;
+
+    --accent: 14 100% 57%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 14 100% 57%;
+    --radius: 0.5rem;
+
+    /* Semantic */
+    --surface: 0 0% 10%;
+    --surface-elevated: 0 0% 14%;
+
+    /* Status */
+    --status-good: 142 71% 45%;
+    --status-warning: 48 96% 53%;
+    --status-critical: 0 84% 60%;
+    --status-info: 217 91% 60%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 64%;
+    --sidebar-primary: 14 100% 57%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 14 100% 57%;
+  }
+
+  /* Skinglow theme */
+  .theme-skinglow {
+    --background: 40 33% 96%;
+    --foreground: 0 0% 10%;
+
+    --card: 40 27% 94%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 163 69% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 100%;
+    --secondary-foreground: 0 0% 10%;
+
+    --muted: 40 20% 90%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 163 69% 32%;
+    --accent-foreground: 0 0% 100%;
+
+    --border: 40 14% 85%;
+    --input: 40 14% 85%;
+    --ring: 163 69% 32%;
+
+    --surface: 0 0% 100%;
+    --surface-elevated: 40 27% 94%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 40%;
+    --sidebar-primary: 163 69% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 27% 94%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 40 14% 85%;
+    --sidebar-ring: 163 69% 32%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-status-good { color: hsl(var(--status-good)); }
+  .text-status-warning { color: hsl(var(--status-warning)); }
+  .text-status-critical { color: hsl(var(--status-critical)); }
+  .text-status-info { color: hsl(var(--status-info)); }
+  .bg-status-good { background-color: hsl(var(--status-good)); }
+  .bg-status-warning { background-color: hsl(var(--status-warning)); }
+  .bg-status-critical { background-color: hsl(var(--status-critical)); }
+  .bg-status-info { background-color: hsl(var(--status-info)); }
+}
