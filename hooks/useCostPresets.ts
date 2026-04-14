@@ -86,8 +86,12 @@ export function useCostPresets(brandId: string) {
         if (error) throw error;
         await loadPresets();
         return data?.[0];
-      } catch (error) {
-        console.error("Error saving preset:", error);
+      } catch (error: any) {
+        console.error("[useCostPresets] Error saving preset:", {
+          message: error?.message,
+          code: error?.code,
+          details: error,
+        });
         throw error;
       }
     },

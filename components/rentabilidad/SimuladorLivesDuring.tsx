@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import type { Brand } from "@/types";
 import type { CostPreset } from "@/hooks/useCostPresets";
 import { CostPresetsModal } from "./CostPresetsModal";
+import { LiveSessionCostsEditor } from "./LiveSessionCostsEditor";
+import { SellerCenterAnalytics } from "./SellerCenterAnalytics";
+import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { syncSellerCenterData, mapSellerDataToSimulatorState } from "@/lib/seller-center";
+import { supabase } from "@/lib/supabase/client";
 import {
   computeDuringLive,
   formatMX,
@@ -12,6 +18,17 @@ import {
   getMarginBg,
   getDuringLiveInsights,
 } from "@/lib/calculos/liveCalcUtils";
+
+export interface SessionCosts {
+  productCostMode?: "pct" | "fixed";
+  productCostPct?: number;
+  productCostFixed?: number;
+  guiasPct?: number;
+  ttCommissionPct?: number;
+  ivaAdsPct?: number;
+  retencionBasePct?: number;
+  costoHost?: number;
+}
 
 interface DuringLiveState {
   ventaActual: number;
@@ -26,6 +43,11 @@ interface DuringLiveState {
   retencionBasePct: number;
   costoHost: number;
   presetsOpen: boolean;
+  analyticsOpen?: boolean;
+  // Session-specific costs (override preset)
+  sessionCosts?: SessionCosts;
+  isEditingSessionCosts?: boolean;
+  isLoadingSellerData?: boolean;
 }
 
 interface SimuladorLivesDuringProps {
@@ -41,6 +63,27 @@ export function SimuladorLivesDuring({
   brand,
   handleSelectPreset,
 }: SimuladorLivesDuringProps) {
+  // Estado para userId obtenido de autenticación
+  const [userId, setUserId] = useState<string>("");
+
+  // Obtener userId cuando el componente se monta
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.id) setUserId(user.id);
+    });
+  }, []);
+
+  const mergedCosts = {
+    productCostMode: s.sessionCosts?.productCostMode ?? s.productCostMode,
+    productCostPct: s.sessionCosts?.productCostPct ?? s.productCostPct,
+    productCostFixed: s.sessionCosts?.productCostFixed ?? s.productCostFixed,
+    guiasPct: s.sessionCosts?.guiasPct ?? s.guiasPct,
+    ttCommissionPct: s.sessionCosts?.ttCommissionPct ?? s.ttCommissionPct,
+    ivaAdsPct: s.sessionCosts?.ivaAdsPct ?? s.ivaAdsPct,
+    retencionBasePct: s.sessionCosts?.retencionBasePct ?? s.retencionBasePct,
+    costoHost: s.sessionCosts?.costoHost ?? s.costoHost,
+  };
+
   const C = useMemo(
     () =>
       computeDuringLive({
@@ -49,16 +92,16 @@ export function SimuladorLivesDuring({
         aov: s.pedidosActuales > 0 ? s.ventaActual / s.pedidosActuales : 0,
         gastoAdsActual: s.gastoAdsActual,
         hasAds: s.gastoAdsActual > 0,
-        productCostMode: s.productCostMode,
-        productCostPct: s.productCostPct,
-        productCostFixed: s.productCostFixed,
-        guiasPct: s.guiasPct,
-        ttCommissionPct: s.ttCommissionPct,
-        ivaAdsPct: s.ivaAdsPct,
-        retencionBasePct: s.retencionBasePct,
-        costoHost: s.costoHost,
+        productCostMode: mergedCosts.productCostMode,
+        productCostPct: mergedCosts.productCostPct,
+        productCostFixed: mergedCosts.productCostFixed,
+        guiasPct: mergedCosts.guiasPct,
+        ttCommissionPct: mergedCosts.ttCommissionPct,
+        ivaAdsPct: mergedCosts.ivaAdsPct,
+        retencionBasePct: mergedCosts.retencionBasePct,
+        costoHost: mergedCosts.costoHost,
       }),
-    [s]
+    [s, mergedCosts]
   );
 
   const insights = useMemo(() => getDuringLiveInsights(C, 20), [C]);
@@ -67,15 +110,50 @@ export function SimuladorLivesDuring({
     <div className="flex gap-5 items-start flex-col lg:flex-row">
       {/* ── LEFT: REAL-TIME INPUTS ── */}
       <div className="w-full lg:w-[420px] lg:flex-shrink-0 space-y-4">
-        {/* BLOQUE 0: Presets */}
+        {/* BLOQUE 0: Presets + Seller Center */}
         {brand?.id && (
           <>
-            <button
-              onClick={() => update("presetsOpen", !s.presetsOpen)}
-              className="w-full rounded-xl bg-gradient-to-r from-[#f97316]/20 to-[#f97316]/5 border border-[#f97316]/30 px-4 py-2 text-sm font-semibold text-[#f97316] hover:border-[#f97316]/60 transition-colors"
-            >
-              📋 Editar Costos
-            </button>
+            <div className=\"flex gap-2\">
+              <button
+                onClick={() => update(\"presetsOpen\", !s.presetsOpen)}
+                className=\"flex-1 rounded-xl bg-gradient-to-r from-[#f97316]/20 to-[#f97316]/5 border border-[#f97316]/30 px-4 py-2 text-sm font-semibold text-[#f97316] hover:border-[#f97316]/60 transition-colors\"
+              >
+                📋 Editar Costos
+              </button>
+              <button
+                onClick={async () => {
+                  update("isLoadingSellerData", true);
+                  try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) throw new Error("Not authenticated");
+
+                    const sellerData = await syncSellerCenterData(brand.id, user.id);
+                    const mappedData = mapSellerDataToSimulatorState(sellerData);
+
+                    Object.entries(mappedData).forEach(([key, value]) => {
+                      update(key, value);
+                    });
+
+                    toast.success("Datos del Seller Center actualizado s ✓");
+                  } catch (error: any) {
+                    console.error("[SellerCenter] Error:", error);
+                    toast.error(
+                      error?.message?.includes("simulated")
+                        ? "Usando datos de prueba (Cowork próxima)"
+                        : `Error: ${error?.message}`
+                    );
+                  } finally {
+                    update("isLoadingSellerData", false);
+                  }
+                }}
+                disabled={s.isLoadingSellerData}
+                className=\"rounded-xl bg-green-500/20 border border-green-500/30 px-4 py-2 text-sm font-semibold text-green-500 hover:border-green-500/60 transition-colors disabled:opacity-50 flex items-center justify-center gap-2\"
+                title=\"Extraer datos del TikTok Seller Center\"
+              >
+                <RefreshCw className={`h-4 w-4 ${s.isLoadingSellerData ? \"animate-spin\" : \"\"}`} />
+                <span className=\"hidden sm:inline\">Seller Center</span>
+              </button>
+            </div>
             <CostPresetsModal
               brandId={brand.id}
               isOpen={s.presetsOpen}
@@ -254,10 +332,34 @@ export function SimuladorLivesDuring({
             </div>
           </div>
 
-          <p className="text-xs text-gray-600 mt-3">
-            Los cambios aquí impactan en tiempo real los cálculos
-          </p>
-        </div>
+        {/* BLOQUE 2: Session Costs Editor */}
+        <LiveSessionCostsEditor
+          isOpen={s.isEditingSessionCosts ?? false}
+          onToggle={() => update(\"isEditingSessionCosts\", !s.isEditingSessionCosts)}
+          sessionCosts={s.sessionCosts}
+          baseValues={{
+            productCostMode: s.productCostMode,
+            productCostPct: s.productCostPct,
+            productCostFixed: s.productCostFixed,
+            guiasPct: s.guiasPct,
+            ttCommissionPct: s.ttCommissionPct,
+            ivaAdsPct: s.ivaAdsPct,
+            retencionBasePct: s.retencionBasePct,
+            costoHost: s.costoHost,
+          }}
+          onUpdate={update}
+          onResetSessionCosts={() => update(\"sessionCosts\", undefined)}
+        />
+        {/* BLOQUE 3: Analytics - Últimos 60 días */}
+        {brand?.id && userId && (
+          <SellerCenterAnalytics
+            brandId={brand.id}
+            userId={userId}
+            days={60}
+            isOpen={s.analyticsOpen ?? false}
+            onToggle={() => update("analyticsOpen", !s.analyticsOpen)}
+          />
+        )}
       </div>
 
       {/* ── RIGHT: LIVE METRICS ── */}

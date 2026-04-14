@@ -51,12 +51,27 @@ export function CostPresetsModal({
     setSavingPreset(true);
     try {
       await savePreset(presetName, presetDesc, currentValues, brandId);
-      toast.success("Preset guardado");
+      toast.success("Preset guardado exitosamente ✓");
       setPresetName("");
       setPresetDesc("");
       setShowSaveForm(false);
-    } catch (error) {
-      toast.error("Error guardando preset");
+    } catch (error: any) {
+      console.error("[CostPresetsModal] Error guardando preset:", {
+        errorMessage: error?.message,
+        errorCode: error?.code,
+        details: error,
+      });
+      
+      // Mostrar error específico según el tipo
+      if (error?.message?.includes("JWT") || error?.message?.includes("auth")) {
+        toast.error("⚠️ Necesitas estar autenticado para guardar presets");
+      } else if (error?.message?.includes("RLS") || error?.code === "42501") {
+        toast.error("⚠️ Permisos insuficientes. Contacta al soporte");
+      } else if (error?.message?.includes("duplicate")) {
+        toast.error("⚠️ Ya existe un preset con este nombre");
+      } else {
+        toast.error(`Error: ${error?.message || "Error guardando preset"}`);
+      }
     } finally {
       setSavingPreset(false);
     }
