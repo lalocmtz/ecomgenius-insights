@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useLives, useUpdateCell } from '@/hooks/useSupabaseData';
+import { useLives, useUpdateCell, useHosts, useAddHost } from '@/hooks/useSupabaseData';
 import { useAppStore } from '@/store/useAppStore';
 import { formatMXN, formatROAS, formatPct } from '@/lib/formatters';
 import { DollarSign, Target, BarChart3, Radio, Plus, X, ChevronUp, ChevronDown, Calculator, TrendingUp, Lightbulb, PieChart } from 'lucide-react';
@@ -7,11 +7,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { PieChart as RePieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
-const HOSTS = ['DENISSE', 'EMILIO', 'FER', 'KARO'];
-const HOST_COLORS: Record<string, string> = {
-  DENISSE: '#f97316', EMILIO: '#3b82f6', FER: '#22c55e', KARO: '#eab308',
-};
+const DEFAULT_HOST_COLORS = ['#f97316', '#3b82f6', '#22c55e', '#eab308', '#ec4899', '#a855f7', '#06b6d4', '#ef4444'];
 
 type SortKey = 'fecha' | 'host' | 'venta' | 'roas_live' | 'utilidad' | 'margen';
 type SortDir = 'asc' | 'desc';
