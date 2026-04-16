@@ -607,6 +607,9 @@ export default function Lives() {
         </div>
       </div>
 
+      {/* ── Comparativa de Ofertas ── */}
+      <OfferComparison allOfferTests={allOfferTests || []} filtered={filtered} hostFilter={hostFilter} />
+
       {/* Add Live Modal */}
       {showModal && <AddLiveModal activeBrand={activeBrand} hosts={HOSTS} onClose={() => setShowModal(false)} onSaved={() => {
         queryClient.invalidateQueries({ queryKey: ['lives'] });
