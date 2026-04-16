@@ -302,6 +302,53 @@ export type Database = {
         }
         Relationships: []
       }
+      live_offer_tests: {
+        Row: {
+          brand: string
+          comunicacion: string
+          created_at: string
+          gasto_ads: number
+          hora_fin: string
+          hora_inicio: string
+          id: string
+          live_id: string
+          pedidos: number
+          ventas: number
+        }
+        Insert: {
+          brand: string
+          comunicacion?: string
+          created_at?: string
+          gasto_ads?: number
+          hora_fin: string
+          hora_inicio: string
+          id?: string
+          live_id: string
+          pedidos?: number
+          ventas?: number
+        }
+        Update: {
+          brand?: string
+          comunicacion?: string
+          created_at?: string
+          gasto_ads?: number
+          hora_fin?: string
+          hora_inicio?: string
+          id?: string
+          live_id?: string
+          pedidos?: number
+          ventas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_offer_tests_live_id_fkey"
+            columns: ["live_id"]
+            isOneToOne: false
+            referencedRelation: "lives_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lives_analysis: {
         Row: {
           ads: number | null
