@@ -414,6 +414,7 @@ export default function Lives() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800/60">
+                <th className="px-2 py-2.5 w-8"></th>
                 {([
                   ['fecha', 'Fecha'], ['host', 'Host'], ['duracion', 'Dur.'],
                   ['pedidos', 'Ped.'], ['venta', 'Venta'], ['ads', 'Ads'],
