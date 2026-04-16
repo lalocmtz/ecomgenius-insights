@@ -222,12 +222,82 @@ export function useAddHost() {
   });
 }
 
+// ─── Offer Tests (Live Segments) ───
+export function useOfferTests(liveId: string | null) {
+  return useQuery({
+    queryKey: ['live_offer_tests', liveId],
+    enabled: !!liveId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('live_offer_tests')
+        .select('*')
+        .eq('live_id', liveId!)
+        .order('hora_inicio', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAllOfferTests(liveIds: string[]) {
+  return useQuery({
+    queryKey: ['live_offer_tests_all', liveIds],
+    enabled: liveIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('live_offer_tests')
+        .select('*')
+        .in('live_id', liveIds)
+        .order('hora_inicio', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAddOfferTest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (test: { live_id: string; brand: string; hora_inicio: string; hora_fin: string; comunicacion: string; ventas: number; pedidos: number; gasto_ads: number }) => {
+      const { error } = await supabase
+        .from('live_offer_tests')
+        .insert(test);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Prueba registrada');
+      queryClient.invalidateQueries({ queryKey: ['live_offer_tests'] });
+      queryClient.invalidateQueries({ queryKey: ['live_offer_tests_all'] });
+    },
+    onError: (err: Error) => toast.error('Error: ' + err.message),
+  });
+}
+
+export function useDeleteOfferTest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('live_offer_tests')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Prueba eliminada');
+      queryClient.invalidateQueries({ queryKey: ['live_offer_tests'] });
+      queryClient.invalidateQueries({ queryKey: ['live_offer_tests_all'] });
+    },
+    onError: (err: Error) => toast.error('Error: ' + err.message),
+  });
+}
+
 // ─── Realtime Subscription Hook ───
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs', 'hosts'] as const;
+    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs', 'hosts', 'live_offer_tests'] as const;
     
     const channel = supabase
       .channel('realtime-all')
