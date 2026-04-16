@@ -785,3 +785,78 @@ function ModalField({ label, type, value, onChange, placeholder }: { label: stri
     </div>
   );
 }
+
+function OfferComparison({ allOfferTests, filtered, hostFilter }: { allOfferTests: any[]; filtered: any[]; hostFilter: string }) {
+  const [open, setOpen] = useState(false);
+
+  const comparison = useMemo(() => {
+    const filteredIds = new Set(filtered.map(l => l.id));
+    const relevant = allOfferTests.filter(t => filteredIds.has(t.live_id));
+    if (!relevant.length) return [];
+
+    const grouped: Record<string, { comunicacion: string; ventas: number; pedidos: number; gasto_ads: number; count: number }> = {};
+    for (const t of relevant) {
+      const key = (t.comunicacion || '').toLowerCase().trim();
+      if (!key) continue;
+      if (!grouped[key]) grouped[key] = { comunicacion: t.comunicacion, ventas: 0, pedidos: 0, gasto_ads: 0, count: 0 };
+      grouped[key].ventas += t.ventas || 0;
+      grouped[key].pedidos += t.pedidos || 0;
+      grouped[key].gasto_ads += t.gasto_ads || 0;
+      grouped[key].count += 1;
+    }
+    return Object.values(grouped).sort((a, b) => b.ventas - a.ventas);
+  }, [allOfferTests, filtered]);
+
+  if (!comparison.length) return null;
+
+  return (
+    <div className="bg-[#111111] rounded-xl border border-gray-800/60 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-5 py-3 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <FlaskConical size={14} className="text-orange-400" />
+          <h3 className="text-sm font-medium text-white">Comparativa de Ofertas</h3>
+          <span className="text-[10px] text-gray-500">({comparison.length} comunicaciones)</span>
+        </div>
+        <ChevronDown size={14} className={`text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="px-5 pb-4 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[9px] uppercase tracking-wider text-gray-500 border-b border-gray-800/60">
+                <th className="text-left py-2 px-2">Comunicación</th>
+                <th className="text-right py-2 px-2"># Pruebas</th>
+                <th className="text-right py-2 px-2">Ventas Total</th>
+                <th className="text-right py-2 px-2">Pedidos</th>
+                <th className="text-right py-2 px-2">AOV Prom</th>
+                <th className="text-right py-2 px-2">ROAS Prom</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.map((c, i) => {
+                const aov = c.pedidos > 0 ? c.ventas / c.pedidos : 0;
+                const roas = c.gasto_ads > 0 ? c.ventas / c.gasto_ads : 0;
+                return (
+                  <tr key={i} className="border-b border-gray-800/30 hover:bg-white/[0.02]">
+                    <td className="py-2 px-2 text-white font-medium">{c.comunicacion}</td>
+                    <td className="py-2 px-2 text-right text-gray-400">{c.count}</td>
+                    <td className="py-2 px-2 text-right text-gray-300">{formatMXN(c.ventas)}</td>
+                    <td className="py-2 px-2 text-right text-gray-300">{c.pedidos}</td>
+                    <td className="py-2 px-2 text-right text-gray-300">{aov > 0 ? formatMXN(aov) : '—'}</td>
+                    <td className={`py-2 px-2 text-right font-medium ${roas >= 4 ? 'text-emerald-400' : roas >= 2 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {roas > 0 ? roas.toFixed(2) + 'x' : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
