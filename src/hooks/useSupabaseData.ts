@@ -297,7 +297,7 @@ export function useRealtimeSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs', 'hosts'] as const;
+    const tables = ['lives_analysis', 'daily_metrics', 'kpis_monthly', 'objetivos', 'creativos', 'organico_posts', 'agent_conversations', 'agent_daily_runs', 'hosts', 'live_offer_tests'] as const;
     
     const channel = supabase
       .channel('realtime-all')
