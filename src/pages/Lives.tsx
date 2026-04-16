@@ -59,9 +59,15 @@ export default function Lives() {
   const [newHostName, setNewHostName] = useState('');
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [newTest, setNewTest] = useState<{ liveId: string; hora_inicio: string; hora_fin: string; comunicacion: string; ventas: number; pedidos: number; gasto_ads: number } | null>(null);
 
   // Calculator state — only 4 inputs
   const [calc, setCalc] = useState({ venta: 0, ads: 0, costoHost: 0, pedidos: 0 });
+
+  // All offer tests for filtered lives
+  const liveIds = useMemo(() => (livesData || []).map(l => l.id), [livesData]);
+  const { data: allOfferTests } = useAllOfferTests(liveIds);
 
   const filtered = useMemo(() => {
     let rows = (livesData || []).filter(l => hostFilter === 'Todos' || l.host === hostFilter);
