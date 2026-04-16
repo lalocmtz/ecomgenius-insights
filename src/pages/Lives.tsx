@@ -41,6 +41,8 @@ export default function Lives() {
   const addHostMutation = useAddHost();
   const updateCell = useUpdateCell('lives_analysis');
   const queryClient = useQueryClient();
+  const addOfferTest = useAddOfferTest();
+  const deleteOfferTest = useDeleteOfferTest();
 
   const HOSTS = useMemo(() => (hostsData || []).map(h => h.name), [hostsData]);
   const HOST_COLORS: Record<string, string> = useMemo(() => {
