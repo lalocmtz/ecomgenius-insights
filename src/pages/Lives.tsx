@@ -439,29 +439,167 @@ export default function Lives() {
                 const p = l.pedidos || 0;
                 const costs = computeLiveCosts(activeBrand, v, a, ch, p);
                 const utilColor = costs.margen > 20 ? 'text-emerald-400' : costs.margen >= 0 ? 'text-yellow-400' : 'text-red-400';
+                const isExpanded = expandedRows.has(l.id);
+                const liveTests = (allOfferTests || []).filter(t => t.live_id === l.id);
+                const testCount = liveTests.length;
 
                 return (
-                  <tr key={l.id} className="border-b border-gray-800/30 hover:bg-white/[0.02] transition-colors">
-                    <EditableTableCell id={l.id} field="fecha" value={l.fecha} />
-                    <EditableTableCell id={l.id} field="host" value={l.host} />
-                    <EditableTableCell id={l.id} field="duracion" value={l.duracion} />
-                    <EditableTableCell id={l.id} field="pedidos" value={l.pedidos} />
-                    <EditableTableCell id={l.id} field="venta" value={l.venta} format={formatMXN} className="text-white font-medium" />
-                    <EditableTableCell id={l.id} field="ads" value={l.ads} format={formatMXN} />
-                    <td className="px-3 py-2 text-gray-300">{formatROAS(costs.roas)}</td>
-                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.producto)}</td>
-                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.guias)}</td>
-                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.comisionTT)}</td>
-                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.retenciones)}</td>
-                    <td className="px-3 py-2 text-gray-400">{formatMXN(costs.ivaAds)}</td>
-                    <EditableTableCell id={l.id} field="costo_host" value={l.costo_host} format={formatMXN} />
-                    <td className={`px-3 py-2 font-medium ${utilColor}`}>{formatMXN(costs.utilidad)}</td>
-                    <td className={`px-3 py-2 font-medium ${utilColor}`}>{costs.margen.toFixed(1)}%</td>
-                  </tr>
+                  <Fragment key={l.id}>
+                    <tr className="border-b border-gray-800/30 hover:bg-white/[0.02] transition-colors">
+                      {/* Expand toggle */}
+                      <td className="px-2 py-2 w-8">
+                        <button
+                          onClick={() => {
+                            const next = new Set(expandedRows);
+                            isExpanded ? next.delete(l.id) : next.add(l.id);
+                            setExpandedRows(next);
+                          }}
+                          className="text-gray-500 hover:text-orange-400 transition-colors relative"
+                        >
+                          <ChevronRight size={14} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                          {testCount > 0 && (
+                            <span className="absolute -top-1 -right-1.5 bg-orange-500 text-white text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center">{testCount}</span>
+                          )}
+                        </button>
+                      </td>
+                      <EditableTableCell id={l.id} field="fecha" value={l.fecha} />
+                      <EditableTableCell id={l.id} field="host" value={l.host} />
+                      <EditableTableCell id={l.id} field="duracion" value={l.duracion} />
+                      <EditableTableCell id={l.id} field="pedidos" value={l.pedidos} />
+                      <EditableTableCell id={l.id} field="venta" value={l.venta} format={formatMXN} className="text-white font-medium" />
+                      <EditableTableCell id={l.id} field="ads" value={l.ads} format={formatMXN} />
+                      <td className="px-3 py-2 text-gray-300">{formatROAS(costs.roas)}</td>
+                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.producto)}</td>
+                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.guias)}</td>
+                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.comisionTT)}</td>
+                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.retenciones)}</td>
+                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.ivaAds)}</td>
+                      <EditableTableCell id={l.id} field="costo_host" value={l.costo_host} format={formatMXN} />
+                      <td className={`px-3 py-2 font-medium ${utilColor}`}>{formatMXN(costs.utilidad)}</td>
+                      <td className={`px-3 py-2 font-medium ${utilColor}`}>{costs.margen.toFixed(1)}%</td>
+                    </tr>
+
+                    {/* Expanded: Offer Tests */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={16} className="bg-[#0d0d0d] px-4 py-3 border-b border-gray-800/30">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <FlaskConical size={12} className="text-orange-400" />
+                              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Pruebas de Ofertas — {l.fecha} ({l.host})</span>
+                            </div>
+                            <button
+                              onClick={() => setNewTest({ liveId: l.id, hora_inicio: '', hora_fin: '', comunicacion: '', ventas: 0, pedidos: 0, gasto_ads: 0 })}
+                              className="flex items-center gap-1 px-2 py-1 text-[10px] bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-colors"
+                            >
+                              <Plus size={10} /> Agregar Prueba
+                            </button>
+                          </div>
+
+                          {/* Inline add form */}
+                          {newTest?.liveId === l.id && (
+                            <div className="grid grid-cols-7 gap-2 mb-3 items-end">
+                              <div>
+                                <label className="text-[8px] uppercase text-gray-500 block mb-0.5">Hora inicio</label>
+                                <input type="time" value={newTest.hora_inicio} onChange={e => setNewTest(t => t ? { ...t, hora_inicio: e.target.value } : t)}
+                                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="text-[8px] uppercase text-gray-500 block mb-0.5">Hora fin</label>
+                                <input type="time" value={newTest.hora_fin} onChange={e => setNewTest(t => t ? { ...t, hora_fin: e.target.value } : t)}
+                                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none" />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-[8px] uppercase text-gray-500 block mb-0.5">Comunicación</label>
+                                <input type="text" value={newTest.comunicacion} onChange={e => setNewTest(t => t ? { ...t, comunicacion: e.target.value } : t)}
+                                  placeholder="Ej: 2x1 en tatuajes temporales"
+                                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="text-[8px] uppercase text-gray-500 block mb-0.5">Ventas</label>
+                                <input type="number" value={newTest.ventas || ''} onChange={e => setNewTest(t => t ? { ...t, ventas: Number(e.target.value) || 0 } : t)}
+                                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="text-[8px] uppercase text-gray-500 block mb-0.5">Pedidos</label>
+                                <input type="number" value={newTest.pedidos || ''} onChange={e => setNewTest(t => t ? { ...t, pedidos: Number(e.target.value) || 0 } : t)}
+                                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none" />
+                              </div>
+                              <div className="flex items-end gap-1">
+                                <div className="flex-1">
+                                  <label className="text-[8px] uppercase text-gray-500 block mb-0.5">Ads</label>
+                                  <input type="number" value={newTest.gasto_ads || ''} onChange={e => setNewTest(t => t ? { ...t, gasto_ads: Number(e.target.value) || 0 } : t)}
+                                    className="w-full bg-[#1a1a1a] border border-gray-700 rounded px-2 py-1 text-[10px] text-white focus:border-orange-500 outline-none" />
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    if (!newTest.hora_inicio || !newTest.hora_fin) { toast.error('Indica hora inicio y fin'); return; }
+                                    addOfferTest.mutate({
+                                      live_id: l.id,
+                                      brand: activeBrand,
+                                      hora_inicio: newTest.hora_inicio,
+                                      hora_fin: newTest.hora_fin,
+                                      comunicacion: newTest.comunicacion,
+                                      ventas: newTest.ventas,
+                                      pedidos: newTest.pedidos,
+                                      gasto_ads: newTest.gasto_ads,
+                                    });
+                                    setNewTest(null);
+                                  }}
+                                  className="px-2 py-1 bg-orange-500 text-white rounded text-[10px] hover:bg-orange-600"
+                                >✓</button>
+                                <button onClick={() => setNewTest(null)} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-[10px] hover:bg-gray-600">✗</button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tests list */}
+                          {liveTests.length > 0 ? (
+                            <table className="w-full text-[10px]">
+                              <thead>
+                                <tr className="text-gray-500 uppercase tracking-wider">
+                                  <th className="text-left py-1 px-2">Horario</th>
+                                  <th className="text-left py-1 px-2">Comunicación</th>
+                                  <th className="text-right py-1 px-2">Ventas</th>
+                                  <th className="text-right py-1 px-2">Pedidos</th>
+                                  <th className="text-right py-1 px-2">Ads</th>
+                                  <th className="text-right py-1 px-2">AOV</th>
+                                  <th className="text-right py-1 px-2">ROAS</th>
+                                  <th className="w-6"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {liveTests.map(t => {
+                                  const tAov = t.pedidos > 0 ? t.ventas / t.pedidos : 0;
+                                  const tRoas = t.gasto_ads > 0 ? t.ventas / t.gasto_ads : 0;
+                                  return (
+                                    <tr key={t.id} className="border-t border-gray-800/30 hover:bg-white/[0.02]">
+                                      <td className="py-1.5 px-2 text-gray-300">{t.hora_inicio?.slice(0,5)} → {t.hora_fin?.slice(0,5)}</td>
+                                      <td className="py-1.5 px-2 text-white font-medium">{t.comunicacion || '—'}</td>
+                                      <td className="py-1.5 px-2 text-right text-gray-300">{formatMXN(t.ventas)}</td>
+                                      <td className="py-1.5 px-2 text-right text-gray-300">{t.pedidos}</td>
+                                      <td className="py-1.5 px-2 text-right text-gray-300">{formatMXN(t.gasto_ads)}</td>
+                                      <td className="py-1.5 px-2 text-right text-gray-300">{tAov > 0 ? formatMXN(tAov) : '—'}</td>
+                                      <td className={`py-1.5 px-2 text-right font-medium ${tRoas >= 4 ? 'text-emerald-400' : tRoas >= 2 ? 'text-yellow-400' : 'text-red-400'}`}>{tRoas > 0 ? tRoas.toFixed(2) + 'x' : '—'}</td>
+                                      <td className="py-1.5 px-1">
+                                        <button onClick={() => deleteOfferTest.mutate(t.id)} className="text-gray-600 hover:text-red-400 transition-colors"><Trash2 size={10} /></button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          ) : !newTest && (
+                            <p className="text-[10px] text-gray-600 text-center py-2">Sin pruebas registradas. Agrega una para comparar ofertas.</p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={15} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
+                <tr><td colSpan={16} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
               )}
             </tbody>
           </table>
