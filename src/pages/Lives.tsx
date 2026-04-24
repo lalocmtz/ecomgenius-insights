@@ -18,9 +18,22 @@ type SortKey = 'fecha' | 'host' | 'venta' | 'roas_live' | 'utilidad' | 'margen';
 type SortDir = 'asc' | 'desc';
 
 // Brand-specific cost formulas
-function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: number, pedidos: number) {
+// productosVendidos × costoUnitario tiene prioridad sobre el porcentaje fijo.
+// Si ambos son > 0 → costo preciso por unidad. Si están en 0 → fallback al % histórico.
+function computeLiveCosts(
+  brand: string,
+  venta: number,
+  ads: number,
+  costoHost: number,
+  pedidos: number,
+  productosVendidos: number = 0,
+  costoUnitario: number = 0,
+) {
   const isFI = brand === 'feel_ink';
-  const producto = venta * (isFI ? 0.12 : 0.2498);
+  const usePreciseCost = productosVendidos > 0 && costoUnitario > 0;
+  const producto = usePreciseCost
+    ? productosVendidos * costoUnitario
+    : venta * (isFI ? 0.12 : 0.2498);
   const guias = venta * 0.06;
   const ivaAds = ads * 0.16;
   const comisionTT = venta * 0.08;
@@ -31,7 +44,7 @@ function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: 
   const margen = venta > 0 ? (utilidad / venta) * 100 : 0;
   const roas = ads > 0 ? venta / ads : 0;
   const aov = pedidos > 0 ? venta / pedidos : 0;
-  return { producto, guias, ivaAds, comisionTT, retenciones, contador, totalCostos, utilidad, margen, roas, aov };
+  return { producto, guias, ivaAds, comisionTT, retenciones, contador, totalCostos, utilidad, margen, roas, aov, usePreciseCost };
 }
 
 export default function Lives() {
@@ -62,8 +75,8 @@ export default function Lives() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [newTest, setNewTest] = useState<{ liveId: string; hora_inicio: string; hora_fin: string; comunicacion: string; ventas: number; pedidos: number; gasto_ads: number } | null>(null);
 
-  // Calculator state — only 4 inputs
-  const [calc, setCalc] = useState({ venta: 0, ads: 0, costoHost: 0, pedidos: 0 });
+  // Calculator state
+  const [calc, setCalc] = useState({ venta: 0, ads: 0, costoHost: 0, pedidos: 0, productosVendidos: 0, costoUnitario: 0 });
 
   // All offer tests for filtered lives
   const liveIds = useMemo(() => (livesData || []).map(l => l.id), [livesData]);
@@ -87,26 +100,31 @@ export default function Lives() {
   const avgMargen = filtered.length ? filtered.reduce((s, l) => s + (l.margen || 0), 0) / filtered.length : 0;
 
   // Calculator computed
-  const calcResults = useMemo(() => computeLiveCosts(activeBrand, calc.venta, calc.ads, calc.costoHost, calc.pedidos), [calc, activeBrand]);
+  const calcResults = useMemo(() => computeLiveCosts(activeBrand, calc.venta, calc.ads, calc.costoHost, calc.pedidos, calc.productosVendidos, calc.costoUnitario), [calc, activeBrand]);
 
-  // Cost breakdown for Análisis de Rendimiento (from aggregated filtered data)
+  // Cost breakdown for Análisis de Rendimiento — suma costos por live (respeta modo preciso o %)
   const costBreakdown = useMemo(() => {
     if (!filtered.length || totalVentas === 0) return null;
-    const agg = computeLiveCosts(activeBrand, totalVentas, totalAds,
-      filtered.reduce((s, l) => s + (l.costo_host || 0), 0),
-      filtered.reduce((s, l) => s + (l.pedidos || 0), 0));
+    let producto = 0, guias = 0, ivaAds = 0, comisionTT = 0, retenciones = 0, contador = 0, costoHostTotal = 0, totalCostosAll = 0, utilidadAll = 0;
+    for (const l of filtered) {
+      const c = computeLiveCosts(activeBrand, l.venta || 0, l.ads || 0, l.costo_host || 0, l.pedidos || 0, (l as any).productos_vendidos || 0, (l as any).costo_unitario_producto || 0);
+      producto += c.producto; guias += c.guias; ivaAds += c.ivaAds; comisionTT += c.comisionTT;
+      retenciones += c.retenciones; contador += c.contador; costoHostTotal += (l.costo_host || 0);
+      totalCostosAll += c.totalCostos; utilidadAll += c.utilidad;
+    }
     const items = [
-      { name: 'Producto', value: agg.producto, color: '#f97316' },
-      { name: 'Guías', value: agg.guias, color: '#3b82f6' },
+      { name: 'Producto', value: producto, color: '#f97316' },
+      { name: 'Guías', value: guias, color: '#3b82f6' },
       { name: 'Ads', value: totalAds, color: '#ef4444' },
-      { name: 'IVA Ads', value: agg.ivaAds, color: '#a855f7' },
-      { name: 'Comisión TT', value: agg.comisionTT, color: '#22c55e' },
-      { name: 'Retenciones', value: agg.retenciones, color: '#eab308' },
-      { name: 'Costo Host', value: filtered.reduce((s, l) => s + (l.costo_host || 0), 0), color: '#ec4899' },
+      { name: 'IVA Ads', value: ivaAds, color: '#a855f7' },
+      { name: 'Comisión TT', value: comisionTT, color: '#22c55e' },
+      { name: 'Retenciones', value: retenciones, color: '#eab308' },
+      { name: 'Costo Host', value: costoHostTotal, color: '#ec4899' },
     ];
-    if (!activeBrand.startsWith('feel')) items.splice(5, 0, { name: 'Contador', value: agg.contador, color: '#06b6d4' });
+    if (!activeBrand.startsWith('feel')) items.splice(5, 0, { name: 'Contador', value: contador, color: '#06b6d4' });
     const total = items.reduce((s, i) => s + i.value, 0);
-    return { items, total, margen: agg.margen, utilidad: agg.utilidad };
+    const margenAgg = totalVentas > 0 ? (utilidadAll / totalVentas) * 100 : 0;
+    return { items, total, margen: margenAgg, utilidad: utilidadAll };
   }, [filtered, totalVentas, totalAds, activeBrand]);
 
   const toggleSort = (key: SortKey) => {
@@ -133,14 +151,16 @@ export default function Lives() {
     const newVal = field === 'host' || field === 'duracion' || field === 'fecha' ? editValue : Number(editValue) || 0;
     
     // For manual fields, also recompute derived fields
-    const manualFields = ['pedidos', 'venta', 'ads', 'costo_host'];
+    const manualFields = ['pedidos', 'venta', 'ads', 'costo_host', 'productos_vendidos', 'costo_unitario_producto'];
     if (manualFields.includes(field) || field === 'fecha' || field === 'host' || field === 'duracion') {
-      const updatedRow = { ...row, [field]: newVal };
+      const updatedRow = { ...row, [field]: newVal } as any;
       const v = Number(updatedRow.venta) || 0;
       const a = Number(updatedRow.ads) || 0;
       const ch = Number(updatedRow.costo_host) || 0;
       const p = Number(updatedRow.pedidos) || 0;
-      const costs = computeLiveCosts(activeBrand, v, a, ch, p);
+      const pv = Number(updatedRow.productos_vendidos) || 0;
+      const cu = Number(updatedRow.costo_unitario_producto) || 0;
+      const costs = computeLiveCosts(activeBrand, v, a, ch, p, pv, cu);
 
       const { error } = await supabase.from('lives_analysis').update({
         [field]: newVal,
@@ -163,7 +183,7 @@ export default function Lives() {
 
   const EditableTableCell = ({ id, field, value, format, className = '' }: { id: string; field: string; value: string | number | null; format?: (v: number) => string; className?: string }) => {
     const isEditing = editingCell?.id === id && editingCell?.field === field;
-    const editable = ['fecha', 'host', 'duracion', 'pedidos', 'venta', 'ads', 'costo_host'].includes(field);
+    const editable = ['fecha', 'host', 'duracion', 'pedidos', 'venta', 'ads', 'costo_host', 'productos_vendidos', 'costo_unitario_producto'].includes(field);
 
     if (isEditing && editable) {
       return (
@@ -386,11 +406,16 @@ export default function Lives() {
             <CalcInput label="Gasto Ads" value={calc.ads} onChange={v => setCalc(c => ({ ...c, ads: v }))} />
             <CalcInput label="Costo Host" value={calc.costoHost} onChange={v => setCalc(c => ({ ...c, costoHost: v }))} />
             <CalcInput label="Pedidos" value={calc.pedidos} onChange={v => setCalc(c => ({ ...c, pedidos: v }))} />
+            <CalcInput label="Productos Vend." value={calc.productosVendidos} onChange={v => setCalc(c => ({ ...c, productosVendidos: v }))} />
+            <CalcInput label="Costo / Producto" value={calc.costoUnitario} onChange={v => setCalc(c => ({ ...c, costoUnitario: v }))} />
           </div>
           <div className="border-t border-gray-800 pt-2 space-y-1">
             <CalcRow label="AOV" value={calc.pedidos > 0 ? formatMXN(calcResults.aov) : '—'} />
             <CalcRow label="ROAS" value={calc.ads > 0 ? formatROAS(calcResults.roas) : '—'} />
-            <CalcRow label={`Producto (${isFI ? '12' : '24.98'}%)`} value={formatMXN(calcResults.producto)} />
+            <CalcRow
+              label={calcResults.usePreciseCost ? `Producto (${calc.productosVendidos}×${formatMXN(calc.costoUnitario)})` : `Producto (${isFI ? '12' : '24.98'}%)`}
+              value={formatMXN(calcResults.producto)}
+            />
             <CalcRow label="Guías (6%)" value={formatMXN(calcResults.guias)} />
             <CalcRow label="IVA Ads (16%)" value={formatMXN(calcResults.ivaAds)} />
             <CalcRow label="Comisión TT (8%)" value={formatMXN(calcResults.comisionTT)} />
@@ -417,7 +442,8 @@ export default function Lives() {
                 <th className="px-2 py-2.5 w-8"></th>
                 {([
                   ['fecha', 'Fecha'], ['host', 'Host'], ['duracion', 'Dur.'],
-                  ['pedidos', 'Ped.'], ['venta', 'Venta'], ['ads', 'Ads'],
+                  ['pedidos', 'Ped.'], ['productos_vendidos', 'Prod.Vend.'], ['costo_unitario_producto', 'Costo/U'],
+                  ['venta', 'Venta'], ['ads', 'Ads'],
                   ['roas_live', 'ROAS'], ['mercancias', 'Merc.'], ['guias_calc', 'Guías'],
                   ['comision_calc', 'Com. TT'], ['ret_calc', 'Ret.'], ['iva_calc', 'IVA Ads'],
                   ['costo_host', 'C. Host'], ['utilidad', 'Utilidad'], ['margen', 'Margen'],
@@ -438,7 +464,9 @@ export default function Lives() {
                 const a = l.ads || 0;
                 const ch = l.costo_host || 0;
                 const p = l.pedidos || 0;
-                const costs = computeLiveCosts(activeBrand, v, a, ch, p);
+                const pv = (l as any).productos_vendidos || 0;
+                const cu = (l as any).costo_unitario_producto || 0;
+                const costs = computeLiveCosts(activeBrand, v, a, ch, p, pv, cu);
                 const utilColor = costs.margen > 20 ? 'text-emerald-400' : costs.margen >= 0 ? 'text-yellow-400' : 'text-red-400';
                 const isExpanded = expandedRows.has(l.id);
                 const liveTests = (allOfferTests || []).filter(t => t.live_id === l.id);
@@ -467,10 +495,12 @@ export default function Lives() {
                       <EditableTableCell id={l.id} field="host" value={l.host} />
                       <EditableTableCell id={l.id} field="duracion" value={l.duracion} />
                       <EditableTableCell id={l.id} field="pedidos" value={l.pedidos} />
+                      <EditableTableCell id={l.id} field="productos_vendidos" value={pv} />
+                      <EditableTableCell id={l.id} field="costo_unitario_producto" value={cu} format={formatMXN} />
                       <EditableTableCell id={l.id} field="venta" value={l.venta} format={formatMXN} className="text-white font-medium" />
                       <EditableTableCell id={l.id} field="ads" value={l.ads} format={formatMXN} />
                       <td className="px-3 py-2 text-gray-300">{formatROAS(costs.roas)}</td>
-                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.producto)}</td>
+                      <td className={`px-3 py-2 ${costs.usePreciseCost ? 'text-orange-300' : 'text-gray-400'}`} title={costs.usePreciseCost ? 'Calculado con productos × costo unitario' : `Estimado al ${activeBrand === 'feel_ink' ? '12' : '24.98'}% de la venta`}>{formatMXN(costs.producto)}</td>
                       <td className="px-3 py-2 text-gray-400">{formatMXN(costs.guias)}</td>
                       <td className="px-3 py-2 text-gray-400">{formatMXN(costs.comisionTT)}</td>
                       <td className="px-3 py-2 text-gray-400">{formatMXN(costs.retenciones)}</td>
@@ -483,7 +513,7 @@ export default function Lives() {
                     {/* Expanded: Offer Tests */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={16} className="bg-[#0d0d0d] px-4 py-3 border-b border-gray-800/30">
+                        <td colSpan={18} className="bg-[#0d0d0d] px-4 py-3 border-b border-gray-800/30">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <FlaskConical size={12} className="text-orange-400" />
@@ -600,7 +630,7 @@ export default function Lives() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={16} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
+                <tr><td colSpan={18} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
               )}
             </tbody>
           </table>
@@ -693,12 +723,13 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
     fecha: new Date().toISOString().split('T')[0],
     hora: '', duracion: '', host: hosts[0] || '',
     pedidos: 0, venta: 0, ads: 0, costo_host: 0,
+    productos_vendidos: 0, costo_unitario_producto: 0,
   });
   const [saving, setSaving] = useState(false);
 
   const computed = useMemo(() => {
-    const { venta, ads, costo_host, pedidos } = form;
-    return computeLiveCosts(activeBrand, venta, ads, costo_host, pedidos);
+    const { venta, ads, costo_host, pedidos, productos_vendidos, costo_unitario_producto } = form;
+    return computeLiveCosts(activeBrand, venta, ads, costo_host, pedidos, productos_vendidos, costo_unitario_producto);
   }, [form, activeBrand]);
 
   const handleSave = async () => {
@@ -712,7 +743,9 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
       utilidad: computed.utilidad, margen: computed.margen / 100,
       gasto_total: computed.totalCostos, envio_comision_tt: computed.comisionTT,
       iva_ads: computed.ivaAds, impuestos: computed.retenciones,
-    });
+      productos_vendidos: form.productos_vendidos,
+      costo_unitario_producto: form.costo_unitario_producto,
+    } as any);
     setSaving(false);
     if (error) { toast.error('Error: ' + error.message); return; }
     toast.success('Live agregado'); onSaved();
@@ -744,6 +777,8 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
           <ModalField label="Venta Total" type="number" value={form.venta} onChange={v => set('venta', Number(v) || 0)} />
           <ModalField label="Gasto Ads" type="number" value={form.ads} onChange={v => set('ads', Number(v) || 0)} />
           <ModalField label="Costo Host" type="number" value={form.costo_host} onChange={v => set('costo_host', Number(v) || 0)} />
+          <ModalField label="Productos Vendidos" type="number" value={form.productos_vendidos} onChange={v => set('productos_vendidos', Number(v) || 0)} />
+          <ModalField label="Costo / Producto" type="number" value={form.costo_unitario_producto} onChange={v => set('costo_unitario_producto', Number(v) || 0)} />
         </div>
 
         {/* Computed preview */}
@@ -752,7 +787,7 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
             <div className="flex justify-between"><span className="text-gray-500">ROAS</span><span className="text-gray-300">{formatROAS(computed.roas)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">AOV</span><span className="text-gray-300">{computed.aov > 0 ? formatMXN(computed.aov) : '—'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Producto</span><span className="text-gray-300">{formatMXN(computed.producto)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Producto {computed.usePreciseCost ? '(unit)' : `(${isFI ? '12' : '24.98'}%)`}</span><span className={computed.usePreciseCost ? 'text-orange-300' : 'text-gray-300'}>{formatMXN(computed.producto)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Guías</span><span className="text-gray-300">{formatMXN(computed.guias)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Com. TT</span><span className="text-gray-300">{formatMXN(computed.comisionTT)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Ret.</span><span className="text-gray-300">{formatMXN(computed.retenciones)}</span></div>
