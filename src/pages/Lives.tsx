@@ -183,7 +183,7 @@ export default function Lives() {
 
   const EditableTableCell = ({ id, field, value, format, className = '' }: { id: string; field: string; value: string | number | null; format?: (v: number) => string; className?: string }) => {
     const isEditing = editingCell?.id === id && editingCell?.field === field;
-    const editable = ['fecha', 'host', 'duracion', 'pedidos', 'venta', 'ads', 'costo_host'].includes(field);
+    const editable = ['fecha', 'host', 'duracion', 'pedidos', 'venta', 'ads', 'costo_host', 'productos_vendidos', 'costo_unitario_producto'].includes(field);
 
     if (isEditing && editable) {
       return (
