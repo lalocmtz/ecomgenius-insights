@@ -513,7 +513,7 @@ export default function Lives() {
                     {/* Expanded: Offer Tests */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={16} className="bg-[#0d0d0d] px-4 py-3 border-b border-gray-800/30">
+                        <td colSpan={18} className="bg-[#0d0d0d] px-4 py-3 border-b border-gray-800/30">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <FlaskConical size={12} className="text-orange-400" />
@@ -630,7 +630,7 @@ export default function Lives() {
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={16} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
+                <tr><td colSpan={18} className="px-4 py-8 text-center text-gray-500">Sin datos</td></tr>
               )}
             </tbody>
           </table>
