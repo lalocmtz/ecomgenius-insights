@@ -723,12 +723,13 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
     fecha: new Date().toISOString().split('T')[0],
     hora: '', duracion: '', host: hosts[0] || '',
     pedidos: 0, venta: 0, ads: 0, costo_host: 0,
+    productos_vendidos: 0, costo_unitario_producto: 0,
   });
   const [saving, setSaving] = useState(false);
 
   const computed = useMemo(() => {
-    const { venta, ads, costo_host, pedidos } = form;
-    return computeLiveCosts(activeBrand, venta, ads, costo_host, pedidos);
+    const { venta, ads, costo_host, pedidos, productos_vendidos, costo_unitario_producto } = form;
+    return computeLiveCosts(activeBrand, venta, ads, costo_host, pedidos, productos_vendidos, costo_unitario_producto);
   }, [form, activeBrand]);
 
   const handleSave = async () => {
@@ -742,7 +743,9 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
       utilidad: computed.utilidad, margen: computed.margen / 100,
       gasto_total: computed.totalCostos, envio_comision_tt: computed.comisionTT,
       iva_ads: computed.ivaAds, impuestos: computed.retenciones,
-    });
+      productos_vendidos: form.productos_vendidos,
+      costo_unitario_producto: form.costo_unitario_producto,
+    } as any);
     setSaving(false);
     if (error) { toast.error('Error: ' + error.message); return; }
     toast.success('Live agregado'); onSaved();
