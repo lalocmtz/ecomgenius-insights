@@ -18,9 +18,22 @@ type SortKey = 'fecha' | 'host' | 'venta' | 'roas_live' | 'utilidad' | 'margen';
 type SortDir = 'asc' | 'desc';
 
 // Brand-specific cost formulas
-function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: number, pedidos: number) {
+// productosVendidos × costoUnitario tiene prioridad sobre el porcentaje fijo.
+// Si ambos son > 0 → costo preciso por unidad. Si están en 0 → fallback al % histórico.
+function computeLiveCosts(
+  brand: string,
+  venta: number,
+  ads: number,
+  costoHost: number,
+  pedidos: number,
+  productosVendidos: number = 0,
+  costoUnitario: number = 0,
+) {
   const isFI = brand === 'feel_ink';
-  const producto = venta * (isFI ? 0.12 : 0.2498);
+  const usePreciseCost = productosVendidos > 0 && costoUnitario > 0;
+  const producto = usePreciseCost
+    ? productosVendidos * costoUnitario
+    : venta * (isFI ? 0.12 : 0.2498);
   const guias = venta * 0.06;
   const ivaAds = ads * 0.16;
   const comisionTT = venta * 0.08;
@@ -31,7 +44,7 @@ function computeLiveCosts(brand: string, venta: number, ads: number, costoHost: 
   const margen = venta > 0 ? (utilidad / venta) * 100 : 0;
   const roas = ads > 0 ? venta / ads : 0;
   const aov = pedidos > 0 ? venta / pedidos : 0;
-  return { producto, guias, ivaAds, comisionTT, retenciones, contador, totalCostos, utilidad, margen, roas, aov };
+  return { producto, guias, ivaAds, comisionTT, retenciones, contador, totalCostos, utilidad, margen, roas, aov, usePreciseCost };
 }
 
 export default function Lives() {
