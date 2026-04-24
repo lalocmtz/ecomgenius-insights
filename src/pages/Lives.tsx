@@ -787,7 +787,7 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
             <div className="flex justify-between"><span className="text-gray-500">ROAS</span><span className="text-gray-300">{formatROAS(computed.roas)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">AOV</span><span className="text-gray-300">{computed.aov > 0 ? formatMXN(computed.aov) : '—'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Producto</span><span className="text-gray-300">{formatMXN(computed.producto)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Producto {computed.usePreciseCost ? '(unit)' : `(${isFI ? '12' : '24.98'}%)`}</span><span className={computed.usePreciseCost ? 'text-orange-300' : 'text-gray-300'}>{formatMXN(computed.producto)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Guías</span><span className="text-gray-300">{formatMXN(computed.guias)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Com. TT</span><span className="text-gray-300">{formatMXN(computed.comisionTT)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Ret.</span><span className="text-gray-300">{formatMXN(computed.retenciones)}</span></div>
