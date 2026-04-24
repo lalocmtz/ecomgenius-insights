@@ -75,8 +75,8 @@ export default function Lives() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [newTest, setNewTest] = useState<{ liveId: string; hora_inicio: string; hora_fin: string; comunicacion: string; ventas: number; pedidos: number; gasto_ads: number } | null>(null);
 
-  // Calculator state — only 4 inputs
-  const [calc, setCalc] = useState({ venta: 0, ads: 0, costoHost: 0, pedidos: 0 });
+  // Calculator state
+  const [calc, setCalc] = useState({ venta: 0, ads: 0, costoHost: 0, pedidos: 0, productosVendidos: 0, costoUnitario: 0 });
 
   // All offer tests for filtered lives
   const liveIds = useMemo(() => (livesData || []).map(l => l.id), [livesData]);
