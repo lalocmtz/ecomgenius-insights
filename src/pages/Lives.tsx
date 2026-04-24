@@ -464,7 +464,9 @@ export default function Lives() {
                 const a = l.ads || 0;
                 const ch = l.costo_host || 0;
                 const p = l.pedidos || 0;
-                const costs = computeLiveCosts(activeBrand, v, a, ch, p);
+                const pv = (l as any).productos_vendidos || 0;
+                const cu = (l as any).costo_unitario_producto || 0;
+                const costs = computeLiveCosts(activeBrand, v, a, ch, p, pv, cu);
                 const utilColor = costs.margen > 20 ? 'text-emerald-400' : costs.margen >= 0 ? 'text-yellow-400' : 'text-red-400';
                 const isExpanded = expandedRows.has(l.id);
                 const liveTests = (allOfferTests || []).filter(t => t.live_id === l.id);
@@ -493,10 +495,12 @@ export default function Lives() {
                       <EditableTableCell id={l.id} field="host" value={l.host} />
                       <EditableTableCell id={l.id} field="duracion" value={l.duracion} />
                       <EditableTableCell id={l.id} field="pedidos" value={l.pedidos} />
+                      <EditableTableCell id={l.id} field="productos_vendidos" value={pv} />
+                      <EditableTableCell id={l.id} field="costo_unitario_producto" value={cu} format={formatMXN} />
                       <EditableTableCell id={l.id} field="venta" value={l.venta} format={formatMXN} className="text-white font-medium" />
                       <EditableTableCell id={l.id} field="ads" value={l.ads} format={formatMXN} />
                       <td className="px-3 py-2 text-gray-300">{formatROAS(costs.roas)}</td>
-                      <td className="px-3 py-2 text-gray-400">{formatMXN(costs.producto)}</td>
+                      <td className={`px-3 py-2 ${costs.usePreciseCost ? 'text-orange-300' : 'text-gray-400'}`} title={costs.usePreciseCost ? 'Calculado con productos × costo unitario' : `Estimado al ${activeBrand === 'feel_ink' ? '12' : '24.98'}% de la venta`}>{formatMXN(costs.producto)}</td>
                       <td className="px-3 py-2 text-gray-400">{formatMXN(costs.guias)}</td>
                       <td className="px-3 py-2 text-gray-400">{formatMXN(costs.comisionTT)}</td>
                       <td className="px-3 py-2 text-gray-400">{formatMXN(costs.retenciones)}</td>
