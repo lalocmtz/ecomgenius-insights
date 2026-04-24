@@ -442,7 +442,8 @@ export default function Lives() {
                 <th className="px-2 py-2.5 w-8"></th>
                 {([
                   ['fecha', 'Fecha'], ['host', 'Host'], ['duracion', 'Dur.'],
-                  ['pedidos', 'Ped.'], ['venta', 'Venta'], ['ads', 'Ads'],
+                  ['pedidos', 'Ped.'], ['productos_vendidos', 'Prod.Vend.'], ['costo_unitario_producto', 'Costo/U'],
+                  ['venta', 'Venta'], ['ads', 'Ads'],
                   ['roas_live', 'ROAS'], ['mercancias', 'Merc.'], ['guias_calc', 'Guías'],
                   ['comision_calc', 'Com. TT'], ['ret_calc', 'Ret.'], ['iva_calc', 'IVA Ads'],
                   ['costo_host', 'C. Host'], ['utilidad', 'Utilidad'], ['margen', 'Margen'],
