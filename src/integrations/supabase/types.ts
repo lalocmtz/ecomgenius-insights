@@ -355,6 +355,7 @@ export type Database = {
           aov: number | null
           brand: string | null
           costo_host: number | null
+          costo_unitario_producto: number | null
           created_at: string | null
           dalilo: number | null
           duracion: string | null
@@ -370,6 +371,7 @@ export type Database = {
           mercancias: number | null
           notas: string | null
           pedidos: number | null
+          productos_vendidos: number | null
           roas_live: number | null
           roi: number | null
           tatuajes: number | null
@@ -382,6 +384,7 @@ export type Database = {
           aov?: number | null
           brand?: string | null
           costo_host?: number | null
+          costo_unitario_producto?: number | null
           created_at?: string | null
           dalilo?: number | null
           duracion?: string | null
@@ -397,6 +400,7 @@ export type Database = {
           mercancias?: number | null
           notas?: string | null
           pedidos?: number | null
+          productos_vendidos?: number | null
           roas_live?: number | null
           roi?: number | null
           tatuajes?: number | null
@@ -409,6 +413,7 @@ export type Database = {
           aov?: number | null
           brand?: string | null
           costo_host?: number | null
+          costo_unitario_producto?: number | null
           created_at?: string | null
           dalilo?: number | null
           duracion?: string | null
@@ -424,6 +429,7 @@ export type Database = {
           mercancias?: number | null
           notas?: string | null
           pedidos?: number | null
+          productos_vendidos?: number | null
           roas_live?: number | null
           roi?: number | null
           tatuajes?: number | null
