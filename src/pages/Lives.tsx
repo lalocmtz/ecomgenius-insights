@@ -777,6 +777,8 @@ function AddLiveModal({ activeBrand, hosts, onClose, onSaved }: { activeBrand: s
           <ModalField label="Venta Total" type="number" value={form.venta} onChange={v => set('venta', Number(v) || 0)} />
           <ModalField label="Gasto Ads" type="number" value={form.ads} onChange={v => set('ads', Number(v) || 0)} />
           <ModalField label="Costo Host" type="number" value={form.costo_host} onChange={v => set('costo_host', Number(v) || 0)} />
+          <ModalField label="Productos Vendidos" type="number" value={form.productos_vendidos} onChange={v => set('productos_vendidos', Number(v) || 0)} />
+          <ModalField label="Costo / Producto" type="number" value={form.costo_unitario_producto} onChange={v => set('costo_unitario_producto', Number(v) || 0)} />
         </div>
 
         {/* Computed preview */}
