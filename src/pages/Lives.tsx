@@ -151,14 +151,16 @@ export default function Lives() {
     const newVal = field === 'host' || field === 'duracion' || field === 'fecha' ? editValue : Number(editValue) || 0;
     
     // For manual fields, also recompute derived fields
-    const manualFields = ['pedidos', 'venta', 'ads', 'costo_host'];
+    const manualFields = ['pedidos', 'venta', 'ads', 'costo_host', 'productos_vendidos', 'costo_unitario_producto'];
     if (manualFields.includes(field) || field === 'fecha' || field === 'host' || field === 'duracion') {
-      const updatedRow = { ...row, [field]: newVal };
+      const updatedRow = { ...row, [field]: newVal } as any;
       const v = Number(updatedRow.venta) || 0;
       const a = Number(updatedRow.ads) || 0;
       const ch = Number(updatedRow.costo_host) || 0;
       const p = Number(updatedRow.pedidos) || 0;
-      const costs = computeLiveCosts(activeBrand, v, a, ch, p);
+      const pv = Number(updatedRow.productos_vendidos) || 0;
+      const cu = Number(updatedRow.costo_unitario_producto) || 0;
+      const costs = computeLiveCosts(activeBrand, v, a, ch, p, pv, cu);
 
       const { error } = await supabase.from('lives_analysis').update({
         [field]: newVal,
