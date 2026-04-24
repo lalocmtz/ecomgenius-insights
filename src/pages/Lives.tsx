@@ -102,24 +102,29 @@ export default function Lives() {
   // Calculator computed
   const calcResults = useMemo(() => computeLiveCosts(activeBrand, calc.venta, calc.ads, calc.costoHost, calc.pedidos, calc.productosVendidos, calc.costoUnitario), [calc, activeBrand]);
 
-  // Cost breakdown for Análisis de Rendimiento (from aggregated filtered data)
+  // Cost breakdown for Análisis de Rendimiento — suma costos por live (respeta modo preciso o %)
   const costBreakdown = useMemo(() => {
     if (!filtered.length || totalVentas === 0) return null;
-    const agg = computeLiveCosts(activeBrand, totalVentas, totalAds,
-      filtered.reduce((s, l) => s + (l.costo_host || 0), 0),
-      filtered.reduce((s, l) => s + (l.pedidos || 0), 0));
+    let producto = 0, guias = 0, ivaAds = 0, comisionTT = 0, retenciones = 0, contador = 0, costoHostTotal = 0, totalCostosAll = 0, utilidadAll = 0;
+    for (const l of filtered) {
+      const c = computeLiveCosts(activeBrand, l.venta || 0, l.ads || 0, l.costo_host || 0, l.pedidos || 0, (l as any).productos_vendidos || 0, (l as any).costo_unitario_producto || 0);
+      producto += c.producto; guias += c.guias; ivaAds += c.ivaAds; comisionTT += c.comisionTT;
+      retenciones += c.retenciones; contador += c.contador; costoHostTotal += (l.costo_host || 0);
+      totalCostosAll += c.totalCostos; utilidadAll += c.utilidad;
+    }
     const items = [
-      { name: 'Producto', value: agg.producto, color: '#f97316' },
-      { name: 'Guías', value: agg.guias, color: '#3b82f6' },
+      { name: 'Producto', value: producto, color: '#f97316' },
+      { name: 'Guías', value: guias, color: '#3b82f6' },
       { name: 'Ads', value: totalAds, color: '#ef4444' },
-      { name: 'IVA Ads', value: agg.ivaAds, color: '#a855f7' },
-      { name: 'Comisión TT', value: agg.comisionTT, color: '#22c55e' },
-      { name: 'Retenciones', value: agg.retenciones, color: '#eab308' },
-      { name: 'Costo Host', value: filtered.reduce((s, l) => s + (l.costo_host || 0), 0), color: '#ec4899' },
+      { name: 'IVA Ads', value: ivaAds, color: '#a855f7' },
+      { name: 'Comisión TT', value: comisionTT, color: '#22c55e' },
+      { name: 'Retenciones', value: retenciones, color: '#eab308' },
+      { name: 'Costo Host', value: costoHostTotal, color: '#ec4899' },
     ];
-    if (!activeBrand.startsWith('feel')) items.splice(5, 0, { name: 'Contador', value: agg.contador, color: '#06b6d4' });
+    if (!activeBrand.startsWith('feel')) items.splice(5, 0, { name: 'Contador', value: contador, color: '#06b6d4' });
     const total = items.reduce((s, i) => s + i.value, 0);
-    return { items, total, margen: agg.margen, utilidad: agg.utilidad };
+    const margenAgg = totalVentas > 0 ? (utilidadAll / totalVentas) * 100 : 0;
+    return { items, total, margen: margenAgg, utilidad: utilidadAll };
   }, [filtered, totalVentas, totalAds, activeBrand]);
 
   const toggleSort = (key: SortKey) => {
