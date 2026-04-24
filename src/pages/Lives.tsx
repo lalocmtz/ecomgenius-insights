@@ -406,11 +406,16 @@ export default function Lives() {
             <CalcInput label="Gasto Ads" value={calc.ads} onChange={v => setCalc(c => ({ ...c, ads: v }))} />
             <CalcInput label="Costo Host" value={calc.costoHost} onChange={v => setCalc(c => ({ ...c, costoHost: v }))} />
             <CalcInput label="Pedidos" value={calc.pedidos} onChange={v => setCalc(c => ({ ...c, pedidos: v }))} />
+            <CalcInput label="Productos Vend." value={calc.productosVendidos} onChange={v => setCalc(c => ({ ...c, productosVendidos: v }))} />
+            <CalcInput label="Costo / Producto" value={calc.costoUnitario} onChange={v => setCalc(c => ({ ...c, costoUnitario: v }))} />
           </div>
           <div className="border-t border-gray-800 pt-2 space-y-1">
             <CalcRow label="AOV" value={calc.pedidos > 0 ? formatMXN(calcResults.aov) : '—'} />
             <CalcRow label="ROAS" value={calc.ads > 0 ? formatROAS(calcResults.roas) : '—'} />
-            <CalcRow label={`Producto (${isFI ? '12' : '24.98'}%)`} value={formatMXN(calcResults.producto)} />
+            <CalcRow
+              label={calcResults.usePreciseCost ? `Producto (${calc.productosVendidos}×${formatMXN(calc.costoUnitario)})` : `Producto (${isFI ? '12' : '24.98'}%)`}
+              value={formatMXN(calcResults.producto)}
+            />
             <CalcRow label="Guías (6%)" value={formatMXN(calcResults.guias)} />
             <CalcRow label="IVA Ads (16%)" value={formatMXN(calcResults.ivaAds)} />
             <CalcRow label="Comisión TT (8%)" value={formatMXN(calcResults.comisionTT)} />
