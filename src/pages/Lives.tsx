@@ -100,7 +100,7 @@ export default function Lives() {
   const avgMargen = filtered.length ? filtered.reduce((s, l) => s + (l.margen || 0), 0) / filtered.length : 0;
 
   // Calculator computed
-  const calcResults = useMemo(() => computeLiveCosts(activeBrand, calc.venta, calc.ads, calc.costoHost, calc.pedidos), [calc, activeBrand]);
+  const calcResults = useMemo(() => computeLiveCosts(activeBrand, calc.venta, calc.ads, calc.costoHost, calc.pedidos, calc.productosVendidos, calc.costoUnitario), [calc, activeBrand]);
 
   // Cost breakdown for Análisis de Rendimiento (from aggregated filtered data)
   const costBreakdown = useMemo(() => {
