@@ -6,6 +6,8 @@ export interface Brand {
   commission_tiktok: number;
   commission_affiliates: number;
   product_cost_pct: number;
+  product_cost_mode: "pct" | "fixed";
+  product_cost_fixed: number;
   iva_ads_pct: number;
   retention_pct: number;
   created_at: string;

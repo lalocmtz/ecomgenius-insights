@@ -207,10 +207,16 @@ export default function BrandOverviewPage({ params }: PageProps) {
 
     const roasBlended = totalAdSpend > 0 ? totalGMV / totalAdSpend : 0;
 
-    const productCostPct = brand?.product_cost_pct ?? 0;
+    const totalItemsSold = dailyData.reduce((sum, d) => sum + d.items_sold, 0);
     const commissionTiktok = brand?.commission_tiktok ?? 0;
     const retentionPct = brand?.retention_pct ?? 0;
     const ivaAdsPct = brand?.iva_ads_pct ?? 0;
+
+    const costMode = brand?.product_cost_mode ?? "pct";
+    const productCost =
+      costMode === "fixed"
+        ? (brand?.product_cost_fixed ?? 0) * totalItemsSold
+        : totalGMV * ((brand?.product_cost_pct ?? 0) / 100);
 
     const commissionAffiliates = brand?.commission_affiliates ?? 0;
     const affiliatesCost = totalGMV * (commissionAffiliates / 100);
@@ -222,7 +228,7 @@ export default function BrandOverviewPage({ params }: PageProps) {
     const grossMargin =
       totalGMV -
       totalRefunds -
-      totalGMV * (productCostPct / 100) -
+      productCost -
       affiliatesCost -
       ttCommission -
       taxRetention -

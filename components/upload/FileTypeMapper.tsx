@@ -24,6 +24,12 @@ export const FILE_TYPE_PATTERNS: FileTypePattern[] = [
     table: "daily_overview",
   },
   {
+    pattern: /^Shop[_ ]Analytics[_ ]Key[_ ]metrics/i,
+    type: "overview",
+    label: "Shop Analytics / Key Metrics",
+    table: "daily_overview",
+  },
+  {
     pattern: /^Product[_ ]Card[_ ]Traffic[_ ]Stats/i,
     type: "product_traffic",
     label: "Product Card Traffic",

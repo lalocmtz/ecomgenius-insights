@@ -112,8 +112,13 @@ export async function POST(request: NextRequest) {
     const totalAdSpend = gmvMaxSpend + livesSpend;
     const roasBlended = totalAdSpend > 0 ? totalGmv / totalAdSpend : 0;
 
+    const totalItemsSold = daily.reduce((s, d) => s + (Number(d.items_sold) || 0), 0);
     const productCostPct = brand.product_cost_pct ?? 12;
-    const productCost = totalGmv * (productCostPct / 100);
+    const costMode = brand.product_cost_mode ?? "pct";
+    const productCost =
+      costMode === "fixed"
+        ? (brand.product_cost_fixed ?? 0) * totalItemsSold
+        : totalGmv * (productCostPct / 100);
     const affiliatesCost = totalGmv * ((brand.commission_affiliates ?? 6) / 100);
     const ttCommission = totalGmv * ((brand.commission_tiktok ?? 8) / 100);
     const baseImponible = totalGmv * (1 - (brand.commission_tiktok ?? 8) / 100 - (brand.commission_affiliates ?? 6) / 100);

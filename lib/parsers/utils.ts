@@ -17,9 +17,22 @@ export function extractDateRange(
 
   for (const cell of firstRow) {
     const str = String(cell ?? "");
-    const match = str.match(/(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})/);
-    if (match) {
-      return { periodStart: match[1], periodEnd: match[2] };
+
+    // "2026-03-01 ~ 2026-04-10"
+    const isoMatch = str.match(/(\d{4}-\d{2}-\d{2})\s*~\s*(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) {
+      return { periodStart: isoMatch[1], periodEnd: isoMatch[2] };
+    }
+
+    // "01/04/2026-30/04/2026" or "01/04/2026 - 30/04/2026" (new TikTok format)
+    const dmyMatch = str.match(
+      /(\d{1,2})\/(\d{1,2})\/(\d{4})\s*[-–]\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/
+    );
+    if (dmyMatch) {
+      return {
+        periodStart: `${dmyMatch[3]}-${dmyMatch[2].padStart(2, "0")}-${dmyMatch[1].padStart(2, "0")}`,
+        periodEnd: `${dmyMatch[6]}-${dmyMatch[5].padStart(2, "0")}-${dmyMatch[4].padStart(2, "0")}`,
+      };
     }
   }
   return null;
@@ -120,9 +133,17 @@ export function parseDate(val: unknown): string {
   }
 
   const str = toStr(val);
+
+  // YYYY-MM-DD or YYYY/MM/DD
   const m = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
   if (m) {
     return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  }
+
+  // DD/MM/YYYY (new TikTok format)
+  const dmy = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
   }
 
   return "";

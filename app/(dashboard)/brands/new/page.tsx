@@ -47,6 +47,8 @@ export default function NewBrandPage() {
         commission_tiktok: 8,
         commission_affiliates: 6,
         product_cost_pct: 12,
+        product_cost_mode: "pct",
+        product_cost_fixed: 0,
         iva_ads_pct: 16,
         retention_pct: 9.03,
       })
